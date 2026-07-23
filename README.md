@@ -6,7 +6,9 @@
 
 **DE** — Bildschirm-Bedienelemente, um [reveal.js](https://revealjs.com) bequem am Touch-Display oder Smartboard zu bedienen: mit dem Stift markieren, in eine Stelle zoomen, Bildschirm schwarz, Übersicht, Vollbild. Ohne Tastatur oder Maus. Eigenständig (bringt sein CSS selbst mit) und ein guter Begleiter zu [Smallcontrol](https://github.com/Martinomagnifico/reveal.js-smallcontrol).
 
-![Screenshot](screenshot.svg)
+**[▶ Live demo · Demo ansehen](https://CHANGEME.github.io/reveal.js-touchcontrols/demo.html)**
+
+[![Screenshot](screenshot.svg)](https://CHANGEME.github.io/reveal.js-touchcontrols/demo.html)
 
 ## Installation
 
