@@ -6,31 +6,65 @@
 <title>TouchControls — Demo</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css">
+<style>
+  /* Navigationspfeile exakt im Marine der Toolbar; auf dunklen Folien weiß */
+  .reveal .controls { color: #2C4A6E !important; }
+  .reveal.has-dark-background .controls { color: #fff !important; }
+  /* Überschriften in Marine (Fließtext bleibt dunkel = besser lesbar) */
+  .reveal h1, .reveal h2 { color: #2C4A6E; }
+</style>
 </head>
 <body>
 <div class="reveal">
   <div class="slides">
     <section>
       <h2>TouchControls</h2>
-      <p>Controls for touch displays · Bedienung für Touch-Displays</p>
-      <p style="font-size:.7em;color:#777">Try the toolbar bottom-left · Leiste unten links ausprobieren</p>
+      <p>Controls for touch displays &amp; smartboards</p>
+      <p>Bedienung für Touch-Displays &amp; Smartboards</p>
+      <p style="font-size:.55em;color:#777">Try the toolbar, bottom-left · Leiste unten links ausprobieren</p>
     </section>
-    <section data-background-color="#1E3452">
-      <h2 style="color:#fff">Dark slide · Dunkle Folie</h2>
-      <p style="color:#cdd">Buttons turn white here. · Buttons werden hier weiß.</p>
-    </section>
+
     <section>
       <h2>Pen · Stift</h2>
-      <p>Tap the pen, then draw on the slide.</p>
-      <p>Stift antippen, dann auf der Folie markieren.</p>
+      <p style="font-size:.7em"><strong>Tap</strong> to draw · <strong>tap again</strong> = next colour · <strong>once more</strong> = off<br>
+      <strong>Tippen</strong> zeichnen · <strong>nochmal</strong> = nächste Farbe · <strong>weiter</strong> = aus</p>
+      <p style="font-size:.7em"><strong>Long-press</strong> the pen = erase this slide<br>
+      <strong>Langer Druck</strong> auf den Stift = Folie löschen</p>
+      <p style="font-size:.5em;color:#777">The button shows the active colour · marks clear on the next slide<br>
+      Der Button zeigt die Farbe · Markierungen verschwinden beim Folienwechsel</p>
     </section>
+
     <section>
       <h2>Zoom · Lupe</h2>
-      <p>Tap the magnifier, then tap a spot.</p>
-      <p>Lupe antippen, dann eine Stelle antippen.</p>
+      <p style="font-size:.7em"><strong>Tap the magnifier</strong>, then <strong>tap the spot</strong> to enlarge<br>
+      <strong>Lupe antippen</strong>, dann die <strong>Stelle antippen</strong> zum Vergrößern</p>
+      <p style="font-size:.7em"><strong>Tap again</strong> = zoom back out · <strong>erneut tippen</strong> = zurück</p>
+    </section>
+
+    <section data-background-color="#1E3452">
+      <h2 style="color:#fff">More · Mehr</h2>
+      <p style="font-size:.68em;color:#dde"><strong>Pause</strong> blanks the screen · Bildschirm schwarz<br>
+      <strong>Overview</strong> shows all slides · Folienübersicht<br>
+      <strong>Fullscreen</strong> · Vollbild</p>
+      <p style="font-size:.58em;color:#9db">The toolbar fades out when idle and returns on movement.<br>
+      Die Leiste blendet bei Inaktivität aus und kommt bei Bewegung zurück.</p>
+      <p style="font-size:.5em;color:#9ab">On dark slides the buttons turn white. · Auf dunklen Folien werden die Buttons weiß.</p>
+    </section>
+
+    <section>
+      <h2>Configurable · Konfigurierbar</h2>
+      <p style="font-size:.7em">Buttons, position, colours, autohide — all optional.<br>
+      Buttons, Position, Farben, Autohide — alles optional.</p>
+      <p style="font-size:.55em;color:#777">See the README for all options · Alle Optionen in der README</p>
     </section>
   </div>
 </div>
+
+<!-- Fußzeile mit Impressum-Link: URL unten durch deine echte Impressum-Adresse ersetzen -->
+<footer style="position:fixed;left:0;right:0;bottom:6px;text-align:center;font-size:12px;font-family:system-ui,-apple-system,sans-serif;z-index:40;pointer-events:none;">
+  <a href="https://florianloyns.com/Impressum/" target="_blank" rel="noopener"
+     style="color:#8a99a8;text-decoration:none;pointer-events:auto;">Impressum</a>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
 <script src="plugin/touchcontrols/touchcontrols.js"></script>
