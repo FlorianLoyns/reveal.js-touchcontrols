@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TouchControls — Demo</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css">
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+    <section>
+      <h2>TouchControls</h2>
+      <p>Controls for touch displays · Bedienung für Touch-Displays</p>
+      <p style="font-size:.7em;color:#777">Try the toolbar bottom-left · Leiste unten links ausprobieren</p>
+    </section>
+    <section data-background-color="#1E3452">
+      <h2 style="color:#fff">Dark slide · Dunkle Folie</h2>
+      <p style="color:#cdd">Buttons turn white here. · Buttons werden hier weiß.</p>
+    </section>
+    <section>
+      <h2>Pen · Stift</h2>
+      <p>Tap the pen, then draw on the slide.</p>
+      <p>Stift antippen, dann auf der Folie markieren.</p>
+    </section>
+    <section>
+      <h2>Zoom · Lupe</h2>
+      <p>Tap the magnifier, then tap a spot.</p>
+      <p>Lupe antippen, dann eine Stelle antippen.</p>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+<script src="plugin/touchcontrols/touchcontrols.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    plugins: [ RevealTouchControls ]
+  });
+</script>
+</body>
+</html>
