@@ -1,12 +1,25 @@
 {
   "name": "reveal.js-touchcontrols",
-  "version": "1.0.0",
-  "description": "On-screen controls that make reveal.js easy to operate on touch displays and smartboards: annotate, zoom, pause, overview, fullscreen.",
-  "keywords": "reveal, reveal.js, controls, touch, smartboard, annotate, pen, zoom, reveal-plugin, plugin",
-  "homepage": "https://github.com/CHANGEME/reveal.js-touchcontrols",
+  "version": "1.1.0",
+  "description": "On-screen controls that make reveal.js easy to operate on touch displays and smartboards: annotate, whiteboard, zoom, timer, pause, overview, fullscreen.",
+  "keywords": [
+    "reveal",
+    "reveal.js",
+    "controls",
+    "touch",
+    "smartboard",
+    "annotate",
+    "pen",
+    "whiteboard",
+    "timer",
+    "zoom",
+    "reveal-plugin",
+    "plugin"
+  ],
+  "homepage": "https://github.com/florianloyns/reveal.js-touchcontrols",
   "repository": {
     "type": "git",
-    "url": "https://github.com/CHANGEME/reveal.js-touchcontrols.git"
+    "url": "https://github.com/florianloyns/reveal.js-touchcontrols.git"
   },
   "main": "plugin/touchcontrols/touchcontrols.js",
   "module": "plugin/touchcontrols/touchcontrols.esm.js",
