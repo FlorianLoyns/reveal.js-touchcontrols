@@ -1,8 +1,10 @@
 /*!
- * reveal.js-touchcontrols 1.1.0
+ * reveal.js-touchcontrols 1.2.1
  * On-screen controls for touch displays / smartboards.
  * Bildschirm-Bedienung für Touch-Displays / Smartboards.
- * Buttons: pen · whiteboard · zoom · timer · pause · overview · fullscreen
+ * Buttons: pen · whiteboard · focus · timer · pause · overview · fullscreen
+ * Focus: tap a spot to dim its surroundings, tap again to zoom in, drag to move,
+ *        pinch or scroll to resize; the magnifier button (or Escape) leaves.
  * @author  Florian Loyns
  * @license MIT
  * Companion to Smallcontrol by Martijn De Jongh (Martino).
@@ -20,7 +22,7 @@
   var ICON = {
     pen:  svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
     board: svg('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 10.5c1.7-2 3.3-2 5 0s3.3 2 5 0"/><path d="M8 21l2-4"/><path d="M16 21l-2-4"/>'),
-    zoom: svg('<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4-4"/><path d="M11 8.3v5.4"/><path d="M8.3 11h5.4"/>'),
+    zoom: svg('<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4-4"/><circle cx="11" cy="11" r="2.3" fill="currentColor" stroke="none"/>'),
     timer: svg('<circle cx="12" cy="13" r="7.5"/><path d="M12 9.5v3.5l2.6 1.6"/><path d="M9.5 2.5h5"/><path d="M12 2.5v3"/>'),
     pause: svg('<path d="M9 5v14"/><path d="M15 5v14"/>'),
     grid: svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
@@ -54,12 +56,19 @@
     + ".reveal .touchcontrols-annot.on{cursor:" + penCursor(o.inks[0]) + "}"
     + ".reveal .touchcontrols-board{position:fixed;inset:0;z-index:44;background:#fff;display:none}"
     + ".reveal .touchcontrols-board.on{display:block}"
+    /* Spotlight: runder Ausschnitt, alles ausserhalb per Schlagschatten abgedunkelt (weiche Kante durch Blur) */
+    + ".reveal .touchcontrols-spot{position:fixed;z-index:46;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 40px 9999px rgba(0,0,0," + o.spotDim + ");opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s ease,box-shadow .4s ease}"
+    + ".reveal .touchcontrols-spot.on{opacity:1;visibility:visible}"
+    + ".reveal .touchcontrols-spot.zoomed{box-shadow:0 0 40px 9999px rgba(0,0,0," + o.spotDimZoom + ")}"
+    /* Im Fokusmodus gehören alle Berührungen uns – sonst reisst der Browser die Geste
+       für eigenes Scrollen/Zoomen an sich und bricht sie mit pointercancel ab. */
+    + ".reveal.tc-focus,.reveal.tc-focus .slides{touch-action:none !important}"
     + ".reveal .touchcontrols-timer{position:fixed;" + pos + ";bottom:" + (o.bottom + 48) + "px;z-index:60;display:none;padding:6px 16px;border-radius:12px;background:" + o.accent + ";color:#fff;font-family:Inter,system-ui,-apple-system,sans-serif;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.5px}"
     + ".reveal .touchcontrols-timer.on{display:block}"
     + ".reveal .touchcontrols-timer.done{background:#C0392B;animation:tc-pulse 1s ease-in-out infinite}"
     + "@keyframes tc-pulse{0%,100%{opacity:1}50%{opacity:.35}}"
     + ".reveal .controls{z-index:50}"
-    + "@media print{.reveal .touchcontrols,.reveal .touchcontrols-annot,.reveal .touchcontrols-board,.reveal .touchcontrols-timer{display:none !important}}";
+    + "@media print{.reveal .touchcontrols,.reveal .touchcontrols-annot,.reveal .touchcontrols-board,.reveal .touchcontrols-timer,.reveal .touchcontrols-spot{display:none !important}}";
     var s = document.createElement('style');
     s.id = 'touchcontrols-css'; s.textContent = css;
     document.head.appendChild(s);
@@ -89,8 +98,15 @@
         buttons: (c.buttons && c.buttons.length) ? c.buttons : ['pen','whiteboard','zoom','timer','pause','overview','fullscreen'],
         timerMinutes: (c.timerMinutes && c.timerMinutes.length) ? c.timerMinutes : [5, 10, 15],
         autohide: (c.autohide != null) ? c.autohide : true,
-        autohideDelay: c.autohideDelay || 3500
+        autohideDelay: c.autohideDelay || 3500,
+        /* Fokus/Lupe: 'both' = erst abdunkeln, dann heranzoomen · 'spot' = nur abdunkeln · 'zoom' = nur heranzoomen */
+        lupeMode: c.lupeMode || 'both',
+        spotRadius: (c.spotRadius != null) ? c.spotRadius : 120,
+        spotDim: (c.spotDim != null) ? c.spotDim : 0.55,
+        zoomScale: c.zoomScale || 2
       };
+      /* In Stufe 2 dunkler es weniger ab – die Vergrösserung fokussiert schon selbst */
+      o.spotDimZoom = (c.spotDimZoom != null) ? c.spotDimZoom : +(o.spotDim * 0.64).toFixed(2);
       injectCSS(o);
 
       var bar = d.createElement('div');
@@ -187,6 +203,7 @@
         activity();
       }
       function penTap(){
+        if (zoom.on || zoom.armed) resetZoom();           // Fokus und Stift schliessen sich aus
         penState = penState + 1;
         if (penState >= o.inks.length) penState = -1;   // nach letzter Farbe: aus
         applyPen();
@@ -215,7 +232,10 @@
         }
         activity();
       }
-      function board(){ setBoard(!wb.on); }
+      function board(){
+        if (zoom.on || zoom.armed) resetZoom();           // Fokus und Whiteboard schliessen sich aus
+        setBoard(!wb.on);
+      }
 
       /* ---- Timer: Tippen schaltet die Stufen durch, Countdown gut sichtbar ---- */
       var timer = { idx:-1, left:0, iv:null, chip:null, done:false }, timerBtn = null;
@@ -263,36 +283,182 @@
         paintTimer();
       }
 
-      /* ---- Lupe: Button antippen, dann Stelle antippen = reinzoomen; erneut tippen = zurück ---- */
-      var zoom = { armed:false, on:false, el:null }, lupeBtn = null;
-      function targetEl(){ var s = deck.getCurrentSlide(); return s ? (s.querySelector('.cardslide') || s) : null; }
-      function resetZoom(){
-        if (zoom.el){ zoom.el.style.transform = ''; }   // Origin bleibt -> weiches Rauszoomen
-        zoom.on=false; zoom.armed=false; zoom.el=null;
-        if (lupeBtn) lupeBtn.classList.remove('active');
-        d.removeEventListener('click', onTap, true);
+      /* ---- Fokus (Lupe): Button antippen, dann Stelle antippen.
+             Stufe 1  Spotlight – Umgebung abgedunkelt, Kontext bleibt sichtbar, Kreis lässt sich ziehen
+             Stufe 2  zusätzlich heranzoomen – der markierte Punkt bleibt dabei an Ort und Stelle
+             Stufe 3  zurück
+             lupeMode: 'both' (Standard) · 'spot' (nur abdunkeln) · 'zoom' (nur heranzoomen) ---- */
+      var zoom = { armed:false, on:false, el:null, stage:0, spot:null, x:0, y:0 }, lupeBtn = null;
+      var drag = { active:false, moved:false, x:0, y:0, id:null };
+      var pts = {}, pinch = { active:false, live:false, d0:0, r0:0 };   // zwei Finger = Kreis grösser/kleiner
+      var radius = o.spotRadius;
+      var SKIP = '.touchcontrols, .controls';   // Leiste und reveal-Pfeile bleiben bedienbar
+
+      function setRadius(r){
+        radius = Math.max(40, Math.min(420, r));
+        if (zoom.spot) zoom.spot.style.width = zoom.spot.style.height = (radius * 2) + 'px';
       }
-      function onTap(ev){
-        if (ev.target.closest && ev.target.closest('.touchcontrols')) return;
-        if (!zoom.el){ resetZoom(); return; }
-        ev.preventDefault(); ev.stopPropagation();
-        if (zoom.on){ resetZoom(); return; }
+      function pinchDist(){
+        var k = Object.keys(pts);
+        if (k.length < 2) return 0;
+        var a = pts[k[0]], b = pts[k[1]];
+        return Math.sqrt((b.x-a.x)*(b.x-a.x) + (b.y-a.y)*(b.y-a.y));
+      }
+
+      function targetEl(){ var s = deck.getCurrentSlide(); return s ? (s.querySelector('.cardslide') || s) : null; }
+
+      function ensureSpot(){
+        if (zoom.spot) return;
+        var el = d.createElement('div');
+        el.className = 'touchcontrols-spot';
+        host.appendChild(el);
+        zoom.spot = el;
+      }
+      function moveSpot(x, y){
+        ensureSpot();
+        zoom.x = x; zoom.y = y;
+        zoom.spot.style.left = x + 'px';
+        zoom.spot.style.top  = y + 'px';
+        zoom.spot.style.width = zoom.spot.style.height = (radius * 2) + 'px';
+      }
+      /* Zoomt auf einen Bildschirmpunkt. transformOrigin = genau dieser Punkt, deshalb
+         bleibt er beim Skalieren an derselben Bildschirmposition – der Spotlight passt weiter. */
+      function applyZoom(x, y){
         var r = zoom.el.getBoundingClientRect();
-        var x = Math.max(0, Math.min(100, ((ev.clientX - r.left)/r.width)*100));
-        var y = Math.max(0, Math.min(100, ((ev.clientY - r.top)/r.height)*100));
+        var px = Math.max(0, Math.min(100, ((x - r.left)/r.width)*100));
+        var py = Math.max(0, Math.min(100, ((y - r.top)/r.height)*100));
         zoom.el.style.willChange = 'transform';
         zoom.el.style.transition = 'transform .42s cubic-bezier(.22,.61,.36,1)';
-        zoom.el.style.transformOrigin = x+'% '+y+'%';
-        zoom.el.style.transform = 'scale(2)';
-        zoom.on = true; zoom.armed = false;
+        zoom.el.style.transformOrigin = px + '% ' + py + '%';
+        zoom.el.style.transform = 'scale(' + o.zoomScale + ')';
+      }
+      function resetZoom(){
+        if (zoom.el){ zoom.el.style.transform = ''; }   // Origin bleibt -> weiches Rauszoomen
+        if (zoom.spot) zoom.spot.classList.remove('on', 'zoomed');
+        zoom.on = false; zoom.armed = false; zoom.el = null; zoom.stage = 0;
+        drag.active = false; drag.moved = false;
+        pts = {}; pinch.active = false;
+        radius = o.spotRadius;                          // nächster Aufruf startet wieder normal
+        host.classList.remove('tc-focus');
+        if (lupeBtn) lupeBtn.classList.remove('active');
+        d.removeEventListener('pointerdown', onDown, true);
+        d.removeEventListener('pointermove', onMove, true);
+        d.removeEventListener('pointerup', onUp, true);
+        d.removeEventListener('pointercancel', onCancel, true);
+        d.removeEventListener('click', swallow, true);
+        d.removeEventListener('keydown', onKey, true);
+        d.removeEventListener('wheel', onWheel, { capture:true });
+      }
+      /* eine Stufe weiter */
+      function advance(x, y){
+        if (o.lupeMode === 'zoom'){                       // klassisches Verhalten
+          if (zoom.stage === 0){ applyZoom(x, y); zoom.stage = 1; zoom.on = true; zoom.armed = false; }
+          else resetZoom();
+          return;
+        }
+        if (zoom.stage === 0){                            // Stufe 1: Spotlight
+          moveSpot(x, y);
+          ensureSpot(); zoom.spot.classList.add('on');
+          zoom.stage = 1; zoom.on = true; zoom.armed = false;
+          return;
+        }
+        if (zoom.stage === 1 && o.lupeMode === 'both'){   // Stufe 2: heranzoomen, auf den markierten Punkt
+          applyZoom(zoom.x, zoom.y);
+          zoom.spot.classList.add('zoomed');              // Abdunklung zurücknehmen, der Zoom fokussiert schon
+          zoom.stage = 2;
+          return;
+        }
+        resetZoom();
+      }
+      /* Tippen = Stufe weiter · Ziehen = Spotlight verschieben (nur Stufe 1, da bleibt der Kontext) */
+      function onDown(ev){
+        if (ev.target.closest && ev.target.closest(SKIP)) return;
+        if (!zoom.el){ resetZoom(); return; }
+        pts[ev.pointerId] = { x:ev.clientX, y:ev.clientY };
+        if (Object.keys(pts).length === 2){              // zweiter Finger: ab jetzt Grösse statt Position
+          pinch.active = true; pinch.live = false;       // wirkt erst ab echter Abstandsänderung
+          pinch.d0 = pinchDist(); pinch.r0 = radius;
+          drag.active = false;
+        } else {
+          drag.active = true; drag.moved = false;
+          drag.x = ev.clientX; drag.y = ev.clientY; drag.id = ev.pointerId;
+        }
+        ev.preventDefault(); ev.stopPropagation();
+      }
+      function onMove(ev){
+        if (pts[ev.pointerId]){ pts[ev.pointerId].x = ev.clientX; pts[ev.pointerId].y = ev.clientY; }
+        if (pinch.active){
+          var dNow = pinchDist();
+          /* Erst ab 24 px Abstandsänderung skalieren: ein aufliegender Handballen
+             liegt still und darf den Kreis nicht springen lassen. */
+          if (!pinch.live && Math.abs(dNow - pinch.d0) > 24) pinch.live = true;
+          if (pinch.live && pinch.d0 > 0 && dNow > 0) setRadius(pinch.r0 * (dNow / pinch.d0));
+          ev.preventDefault(); ev.stopPropagation();
+          return;
+        }
+        if (!drag.active || ev.pointerId !== drag.id) return;
+        if (!drag.moved){
+          var dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+          if (dx*dx + dy*dy < 100) return;                // erst ab ~10 px als Ziehen werten (Finger wackelt)
+          drag.moved = true;
+        }
+        if (zoom.stage === 1 && o.lupeMode !== 'zoom') moveSpot(ev.clientX, ev.clientY);
+        ev.preventDefault(); ev.stopPropagation();
+      }
+      function onUp(ev){
+        delete pts[ev.pointerId];
+        if (pinch.active){                                // Finger weg: Pinch beenden, kein Stufenwechsel
+          if (Object.keys(pts).length < 2){ pinch.active = false; pinch.live = false; drag.active = false; }
+          ev.preventDefault(); ev.stopPropagation();
+          return;
+        }
+        if (!drag.active || ev.pointerId !== drag.id) return;
+        drag.active = false;
+        if (!drag.moved) advance(ev.clientX, ev.clientY);
+        ev.preventDefault(); ev.stopPropagation();
+      }
+      /* Vom System abgebrochene Geste: nur aufräumen. Ein Abbruch ist keine Eingabe –
+         früher hat er hier eine Stufe weitergeschaltet. */
+      function onCancel(ev){
+        delete pts[ev.pointerId];
+        if (Object.keys(pts).length < 2){ pinch.active = false; pinch.live = false; }
+        if (drag.id === ev.pointerId){ drag.active = false; drag.moved = false; }
+      }
+      /* Escape beendet den Fokus – und zwar bevor reveal daraus die Folienübersicht macht */
+      function onKey(ev){
+        if (ev.key !== 'Escape' && ev.key !== 'Esc') return;
+        if (!zoom.on && !zoom.armed) return;
+        ev.preventDefault(); ev.stopPropagation();
+        resetZoom();
+      }
+      /* Mausrad ändert die Kreisgrösse (das Gegenstück zum Pinch am Board) */
+      function onWheel(ev){
+        if (!zoom.on && !zoom.armed) return;
+        if (ev.target.closest && ev.target.closest(SKIP)) return;
+        ev.preventDefault(); ev.stopPropagation();
+        setRadius(radius - (ev.deltaY > 0 ? 14 : -14));
+      }
+      function swallow(ev){                               // reveal darf im Fokusmodus nicht blättern
+        if (ev.target.closest && ev.target.closest(SKIP)) return;
+        ev.preventDefault(); ev.stopPropagation();
       }
       function lupe(){
         activity();
         if (zoom.on || zoom.armed){ resetZoom(); return; }
+        if (wb.on) setBoard(false);                       // auf weisser Tafel gibt es nichts abzudunkeln
         zoom.el = targetEl();
         if (!zoom.el) return;
-        zoom.armed = true; lupeBtn.classList.add('active');
-        d.addEventListener('click', onTap, true);
+        if (penState >= 0){ penState = -1; applyPen(); }  // Stift und Fokus schliessen sich aus
+        zoom.armed = true; zoom.stage = 0; radius = o.spotRadius;
+        host.classList.add('tc-focus');   // Berührungen gehören ab jetzt uns
+        lupeBtn.classList.add('active');
+        d.addEventListener('pointerdown', onDown, true);
+        d.addEventListener('pointermove', onMove, true);
+        d.addEventListener('pointerup', onUp, true);
+        d.addEventListener('pointercancel', onCancel, true);
+        d.addEventListener('click', swallow, true);
+        d.addEventListener('keydown', onKey, true);
+        d.addEventListener('wheel', onWheel, { capture:true, passive:false });
       }
 
       /* neue Folie: Whiteboard zu, Markierungen weg, Zoom zurück (Timer läuft weiter) */
@@ -300,12 +466,24 @@
         if (wb.on) setBoard(false);
         clearAnnot(); resetZoom();
       });
+      /* Übersicht oder Pause: Fokus beenden. Sonst schluckt er die Tipps, mit denen
+         man in der Übersicht eine Folie auswählt – egal ob per Button, Taste oder API. */
+      if (deck.on){
+        deck.on('overviewshown', function(){ if (zoom.on || zoom.armed) resetZoom(); });
+        deck.on('paused',        function(){ if (zoom.on || zoom.armed) resetZoom(); });
+      }
+
+      function lupeTitle(){
+        if (o.lupeMode === 'zoom') return 'Lupe – Stelle antippen zum Zoomen';
+        if (o.lupeMode === 'spot') return 'Fokus – Stelle antippen hebt sie hervor · ziehen bewegt den Kreis';
+        return 'Fokus – Stelle antippen hebt sie hervor · nochmal tippen zoomt heran · ziehen bewegt den Kreis';
+      }
 
       /* ---- Buttons aus der Konfiguration ---- */
       var ALL = {
         pen:        { ic:ICON.pen,   t:'Stift – markieren · lang drücken löscht die Folie', pen:true },
         whiteboard: { ic:ICON.board, t:'Whiteboard – weiße Fläche zum Schreiben', wb:true, fn:board },
-        zoom:       { ic:ICON.zoom,  t:'Lupe – Stelle antippen zum Zoomen', lupe:true, fn:lupe },
+        zoom:       { ic:ICON.zoom,  t:lupeTitle(), lupe:true, fn:lupe },
         timer:      { ic:ICON.timer, t:'Timer – Tippen wechselt ' + o.timerMinutes.join(' · ') + ' min, danach aus', tm:true, fn:timerTap },
         pause:      { ic:ICON.pause, t:'Pause – Bildschirm schwarz', fn:function(){ deck.togglePause(); } },
         overview:   { ic:ICON.grid,  t:'Folienübersicht', fn:function(){ deck.toggleOverview(); } },

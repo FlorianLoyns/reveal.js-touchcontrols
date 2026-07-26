@@ -38,9 +38,28 @@
     </section>
 
     <section>
-      <h2>Zoom</h2>
-      <p style="font-size:.7em"><strong>Tap the magnifier</strong>, then <strong>tap the spot</strong> to enlarge.</p>
-      <p style="font-size:.7em"><strong>Tap again</strong> to zoom back out.</p>
+      <h2 style="margin-bottom:.15em">Focus</h2>
+      <p style="font-size:.5em;margin:0 0 .5em">
+        <strong>Tap the magnifier</strong>, then a cell below — the surroundings dim, the context stays.<br>
+        <strong>Tap again</strong> zooms in · <strong>drag</strong> moves it · <strong>pinch</strong> or scroll resizes · <strong>Esc</strong> leaves.
+      </p>
+      <table style="width:100%;border-collapse:collapse;font-size:.44em">
+        <tr style="background:#EDF1F5;color:#2C4A6E">
+          <th style="text-align:left;padding:.35em .5em">Run</th>
+          <th style="text-align:right;padding:.35em .5em">Samples</th>
+          <th style="text-align:right;padding:.35em .5em">Mean</th>
+          <th style="text-align:right;padding:.35em .5em">SD</th>
+          <th style="text-align:right;padding:.35em .5em">95% CI</th>
+          <th style="text-align:right;padding:.35em .5em">p</th>
+        </tr>
+        <tr><td style="padding:.3em .5em">A-01</td><td style="text-align:right;padding:.3em .5em">1 248</td><td style="text-align:right;padding:.3em .5em">14.82</td><td style="text-align:right;padding:.3em .5em">2.31</td><td style="text-align:right;padding:.3em .5em">14.69–14.95</td><td style="text-align:right;padding:.3em .5em">0.004</td></tr>
+        <tr style="background:#FAFBFC"><td style="padding:.3em .5em">A-02</td><td style="text-align:right;padding:.3em .5em">1 194</td><td style="text-align:right;padding:.3em .5em">15.07</td><td style="text-align:right;padding:.3em .5em">2.44</td><td style="text-align:right;padding:.3em .5em">14.93–15.21</td><td style="text-align:right;padding:.3em .5em">0.011</td></tr>
+        <tr><td style="padding:.3em .5em">B-01</td><td style="text-align:right;padding:.3em .5em">1 301</td><td style="text-align:right;padding:.3em .5em">13.96</td><td style="text-align:right;padding:.3em .5em">1.87</td><td style="text-align:right;padding:.3em .5em">13.86–14.06</td><td style="text-align:right;padding:.3em .5em">&lt;0.001</td></tr>
+        <tr style="background:#FAFBFC"><td style="padding:.3em .5em">B-02</td><td style="text-align:right;padding:.3em .5em">1 276</td><td style="text-align:right;padding:.3em .5em">14.11</td><td style="text-align:right;padding:.3em .5em">1.92</td><td style="text-align:right;padding:.3em .5em">14.00–14.22</td><td style="text-align:right;padding:.3em .5em">&lt;0.001</td></tr>
+        <tr><td style="padding:.3em .5em">C-01</td><td style="text-align:right;padding:.3em .5em">986</td><td style="text-align:right;padding:.3em .5em">16.40</td><td style="text-align:right;padding:.3em .5em">3.05</td><td style="text-align:right;padding:.3em .5em">16.21–16.59</td><td style="text-align:right;padding:.3em .5em">0.062</td></tr>
+        <tr style="background:#FAFBFC"><td style="padding:.3em .5em">C-02</td><td style="text-align:right;padding:.3em .5em">1 020</td><td style="text-align:right;padding:.3em .5em">16.28</td><td style="text-align:right;padding:.3em .5em">2.98</td><td style="text-align:right;padding:.3em .5em">16.10–16.46</td><td style="text-align:right;padding:.3em .5em">0.058</td></tr>
+      </table>
+      <p style="font-size:.36em;color:#888;margin-top:.5em">A table is where this earns its keep: point at one row without hiding the rest.</p>
     </section>
 
     <section>
@@ -71,7 +90,7 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
-<script src="plugin/touchcontrols/touchcontrols.js"></script>
+<script src="plugin/touchcontrols/touchcontrols.js?v=1.2.1"></script>
 <script>
   Reveal.initialize({
     hash: true,
