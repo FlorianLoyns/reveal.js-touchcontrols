@@ -10,6 +10,8 @@ On-screen controls that make [reveal.js](https://revealjs.com) easy to operate o
 
 ## Installation
 
+**Requires** reveal.js 4.2 or newer. Tested with reveal.js 5.x.
+
 Copy the `touchcontrols` folder into your reveal.js `plugin/` folder — or install from npm.
 
 ```console
