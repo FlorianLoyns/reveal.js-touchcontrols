@@ -1,10 +1,10 @@
 /*!
- * reveal.js-touchcontrols 1.2.1
+ * reveal.js-touchcontrols 1.3.0
  * On-screen controls for touch displays / smartboards.
  * Bildschirm-Bedienung für Touch-Displays / Smartboards.
  * Buttons: pen · whiteboard · focus · timer · pause · overview · fullscreen
- * Focus: tap a spot to dim its surroundings, tap again to zoom in, drag to move,
- *        pinch or scroll to resize; the magnifier button (or Escape) leaves.
+ * Focus: tap a spot to dim its surroundings, tap again to zoom in, drag to move.
+ * Pen marks stay on their slide for the whole session (keepAnnotations).
  * @author  Florian Loyns
  * @license MIT
  * Companion to Smallcontrol by Martijn De Jongh (Martino).
@@ -22,7 +22,7 @@
   var ICON = {
     pen:  svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
     board: svg('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 10.5c1.7-2 3.3-2 5 0s3.3 2 5 0"/><path d="M8 21l2-4"/><path d="M16 21l-2-4"/>'),
-    zoom: svg('<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4-4"/><circle cx="11" cy="11" r="2.3" fill="currentColor" stroke="none"/>'),
+    zoom: svg('<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4-4"/><path d="M11 8.3v5.4"/><path d="M8.3 11h5.4"/>'),
     timer: svg('<circle cx="12" cy="13" r="7.5"/><path d="M12 9.5v3.5l2.6 1.6"/><path d="M9.5 2.5h5"/><path d="M12 2.5v3"/>'),
     pause: svg('<path d="M9 5v14"/><path d="M15 5v14"/>'),
     grid: svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
@@ -57,12 +57,8 @@
     + ".reveal .touchcontrols-board{position:fixed;inset:0;z-index:44;background:#fff;display:none}"
     + ".reveal .touchcontrols-board.on{display:block}"
     /* Spotlight: runder Ausschnitt, alles ausserhalb per Schlagschatten abgedunkelt (weiche Kante durch Blur) */
-    + ".reveal .touchcontrols-spot{position:fixed;z-index:46;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 40px 9999px rgba(0,0,0," + o.spotDim + ");opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s ease,box-shadow .4s ease}"
+    + ".reveal .touchcontrols-spot{position:fixed;z-index:46;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 40px 9999px rgba(0,0,0," + o.spotDim + ");opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s ease}"
     + ".reveal .touchcontrols-spot.on{opacity:1;visibility:visible}"
-    + ".reveal .touchcontrols-spot.zoomed{box-shadow:0 0 40px 9999px rgba(0,0,0," + o.spotDimZoom + ")}"
-    /* Im Fokusmodus gehören alle Berührungen uns – sonst reisst der Browser die Geste
-       für eigenes Scrollen/Zoomen an sich und bricht sie mit pointercancel ab. */
-    + ".reveal.tc-focus,.reveal.tc-focus .slides{touch-action:none !important}"
     + ".reveal .touchcontrols-timer{position:fixed;" + pos + ";bottom:" + (o.bottom + 48) + "px;z-index:60;display:none;padding:6px 16px;border-radius:12px;background:" + o.accent + ";color:#fff;font-family:Inter,system-ui,-apple-system,sans-serif;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.5px}"
     + ".reveal .touchcontrols-timer.on{display:block}"
     + ".reveal .touchcontrols-timer.done{background:#C0392B;animation:tc-pulse 1s ease-in-out infinite}"
@@ -103,10 +99,10 @@
         lupeMode: c.lupeMode || 'both',
         spotRadius: (c.spotRadius != null) ? c.spotRadius : 120,
         spotDim: (c.spotDim != null) ? c.spotDim : 0.55,
-        zoomScale: c.zoomScale || 2
+        zoomScale: c.zoomScale || 2,
+        /* Markierungen beim Folienwechsel behalten statt loeschen */
+        keepAnnotations: (c.keepAnnotations != null) ? c.keepAnnotations : true
       };
-      /* In Stufe 2 dunkler es weniger ab – die Vergrösserung fokussiert schon selbst */
-      o.spotDimZoom = (c.spotDimZoom != null) ? c.spotDimZoom : +(o.spotDim * 0.64).toFixed(2);
       injectCSS(o);
 
       var bar = d.createElement('div');
@@ -131,13 +127,63 @@
       var currentInk = o.inks[0], penState = -1;   // -1 = aus, sonst Index in o.inks
       var lastX = 0, lastY = 0, activePtr = null;  // ein Finger/Stift zeichnet, der Rest wird ignoriert
 
+      /* Markierungen je Folie merken (keepAnnotations). Gespeichert wird nur der
+         bemalte Ausschnitt, und seine Lage als Anteil der Flaeche - so passt der
+         Stand auch nach einem Fenster- oder Aufloesungswechsel wieder. Alles nur
+         im Arbeitsspeicher: Neu laden beginnt mit leeren Folien. */
+      var annots = (typeof Map === 'function') ? new Map() : null;
+      var mark = null;                              // bemalter Bereich der aktuellen Folie, in CSS-Pixeln
+      function markPoint(px, py){
+        var rr = o.penWidth + 2;
+        if (!mark) mark = { x1:px - rr, y1:py - rr, x2:px + rr, y2:py + rr };
+        else {
+          if (px - rr < mark.x1) mark.x1 = px - rr;
+          if (py - rr < mark.y1) mark.y1 = py - rr;
+          if (px + rr > mark.x2) mark.x2 = px + rr;
+          if (py + rr > mark.y2) mark.y2 = py + rr;
+        }
+      }
+      function snapshot(){
+        if (!mark || !pen.canvas) return null;
+        var dpr = window.devicePixelRatio || 1, W = pen.canvas.width, H = pen.canvas.height;
+        var x1 = Math.max(0, Math.floor(mark.x1 * dpr)), y1 = Math.max(0, Math.floor(mark.y1 * dpr));
+        var x2 = Math.min(W, Math.ceil(mark.x2 * dpr)), y2 = Math.min(H, Math.ceil(mark.y2 * dpr));
+        if (x2 <= x1 || y2 <= y1) return null;
+        var cv = d.createElement('canvas');
+        cv.width = x2 - x1; cv.height = y2 - y1;
+        cv.getContext('2d').drawImage(pen.canvas, x1, y1, cv.width, cv.height, 0, 0, cv.width, cv.height);
+        return { cv:cv, x:x1 / W, y:y1 / H, w:cv.width / W, h:cv.height / H };
+      }
+      function paint(rec){
+        clearCanvas();
+        if (!rec || !pen.ctx) return;
+        var x = pen.ctx, W = pen.canvas.width, H = pen.canvas.height, dpr = window.devicePixelRatio || 1;
+        x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
+        x.drawImage(rec.cv, rec.x * W, rec.y * H, rec.w * W, rec.h * H);
+        x.restore();
+        mark = { x1:rec.x * W / dpr, y1:rec.y * H / dpr,
+                 x2:(rec.x + rec.w) * W / dpr, y2:(rec.y + rec.h) * H / dpr };
+      }
+      function saveAnnot(sec){
+        if (!annots || !o.keepAnnotations || !sec) return;
+        var rec = snapshot();
+        if (rec) annots.set(sec, rec); else annots['delete'](sec);
+      }
+      function loadAnnot(sec){
+        paint((annots && o.keepAnnotations && sec) ? annots.get(sec) : null);
+      }
+      function forget(sec){ if (annots && sec) annots['delete'](sec); }
+      function hier(){ return deck.getCurrentSlide ? deck.getCurrentSlide() : null; }
+
       function sizeCanvas(){
         var cv = pen.canvas, dpr = window.devicePixelRatio || 1;
+        var alt = (cv.width && cv.height) ? snapshot() : null;   // Stand retten, das Setzen der Groesse loescht
         cv.width  = Math.round(window.innerWidth  * dpr);
         cv.height = Math.round(window.innerHeight * dpr);
         cv.style.width  = window.innerWidth  + 'px';   // CSS-Größe explizit: Canvas streckt sich
         cv.style.height = window.innerHeight + 'px';   // als ersetztes Element nicht über inset:0
         pen.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);    // in CSS-Pixeln zeichnen, scharf auf HiDPI
+        if (alt) paint(alt);                            // und wieder auftragen, auf die neue Groesse skaliert
       }
       function inkStyle(x){
         x.strokeStyle = currentInk; x.lineWidth = o.penWidth; x.lineCap = 'round'; x.lineJoin = 'round';
@@ -154,6 +200,7 @@
           activePtr = e.pointerId;
           if (cv.setPointerCapture){ try { cv.setPointerCapture(e.pointerId); } catch(_){} }
           pen.drawing = true; lastX = e.clientX; lastY = e.clientY;
+          markPoint(lastX, lastY);
           var x = pen.ctx; inkStyle(x);
           x.beginPath(); x.moveTo(lastX, lastY); x.lineTo(lastX + 0.01, lastY); x.stroke();   // Punkt bei blossem Tippen
           e.preventDefault(); e.stopPropagation();
@@ -167,6 +214,7 @@
           for (var i = 0; i < evs.length; i++){       // nur die neuen Segmente zeichnen
             x.lineTo(evs[i].clientX, evs[i].clientY);
             lastX = evs[i].clientX; lastY = evs[i].clientY;
+            markPoint(lastX, lastY);
           }
           x.stroke();
           e.preventDefault();
@@ -181,12 +229,20 @@
         window.addEventListener('resize', sizeCanvas);
         host.appendChild(cv);
       }
-      function clearAnnot(){
+      /* clearCanvas wischt nur die Flaeche, clearAnnot wischt sie und vergisst
+         den Stand der Folie - sonst kaeme das Geloeschte beim Zurueckblaettern
+         wieder zum Vorschein. */
+      function clearCanvas(){
         if (!pen.ctx) return;
         var x = pen.ctx;
         x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
         x.clearRect(0, 0, pen.canvas.width, pen.canvas.height);
         x.restore();
+        mark = null;
+      }
+      function clearAnnot(sec){
+        clearCanvas();
+        forget(sec || hier());
       }
       function applyPen(){
         ensureCanvas();
@@ -218,7 +274,7 @@
         host.appendChild(el);
         wb.el = el;
       }
-      function setBoard(on){
+      function setBoard(on, sec){
         ensureBoard();
         wb.on = on;
         wb.el.classList.toggle('on', on);
@@ -227,15 +283,12 @@
         if (on){
           if (penState < 0){ penState = 0; applyPen(); }   // gleich losschreiben können
         } else {
-          clearAnnot();                                     // Tafelbild verwerfen
+          clearAnnot(sec || hier());                        // Tafelbild verwerfen
           if (penState >= 0){ penState = -1; applyPen(); }
         }
         activity();
       }
-      function board(){
-        if (zoom.on || zoom.armed) resetZoom();           // Fokus und Whiteboard schliessen sich aus
-        setBoard(!wb.on);
-      }
+      function board(){ setBoard(!wb.on); }
 
       /* ---- Timer: Tippen schaltet die Stufen durch, Countdown gut sichtbar ---- */
       var timer = { idx:-1, left:0, iv:null, chip:null, done:false }, timerBtn = null;
@@ -290,20 +343,7 @@
              lupeMode: 'both' (Standard) · 'spot' (nur abdunkeln) · 'zoom' (nur heranzoomen) ---- */
       var zoom = { armed:false, on:false, el:null, stage:0, spot:null, x:0, y:0 }, lupeBtn = null;
       var drag = { active:false, moved:false, x:0, y:0, id:null };
-      var pts = {}, pinch = { active:false, live:false, d0:0, r0:0 };   // zwei Finger = Kreis grösser/kleiner
-      var radius = o.spotRadius;
       var SKIP = '.touchcontrols, .controls';   // Leiste und reveal-Pfeile bleiben bedienbar
-
-      function setRadius(r){
-        radius = Math.max(40, Math.min(420, r));
-        if (zoom.spot) zoom.spot.style.width = zoom.spot.style.height = (radius * 2) + 'px';
-      }
-      function pinchDist(){
-        var k = Object.keys(pts);
-        if (k.length < 2) return 0;
-        var a = pts[k[0]], b = pts[k[1]];
-        return Math.sqrt((b.x-a.x)*(b.x-a.x) + (b.y-a.y)*(b.y-a.y));
-      }
 
       function targetEl(){ var s = deck.getCurrentSlide(); return s ? (s.querySelector('.cardslide') || s) : null; }
 
@@ -319,7 +359,7 @@
         zoom.x = x; zoom.y = y;
         zoom.spot.style.left = x + 'px';
         zoom.spot.style.top  = y + 'px';
-        zoom.spot.style.width = zoom.spot.style.height = (radius * 2) + 'px';
+        zoom.spot.style.width = zoom.spot.style.height = (o.spotRadius * 2) + 'px';
       }
       /* Zoomt auf einen Bildschirmpunkt. transformOrigin = genau dieser Punkt, deshalb
          bleibt er beim Skalieren an derselben Bildschirmposition – der Spotlight passt weiter. */
@@ -334,20 +374,15 @@
       }
       function resetZoom(){
         if (zoom.el){ zoom.el.style.transform = ''; }   // Origin bleibt -> weiches Rauszoomen
-        if (zoom.spot) zoom.spot.classList.remove('on', 'zoomed');
+        if (zoom.spot) zoom.spot.classList.remove('on');
         zoom.on = false; zoom.armed = false; zoom.el = null; zoom.stage = 0;
         drag.active = false; drag.moved = false;
-        pts = {}; pinch.active = false;
-        radius = o.spotRadius;                          // nächster Aufruf startet wieder normal
-        host.classList.remove('tc-focus');
         if (lupeBtn) lupeBtn.classList.remove('active');
         d.removeEventListener('pointerdown', onDown, true);
         d.removeEventListener('pointermove', onMove, true);
         d.removeEventListener('pointerup', onUp, true);
-        d.removeEventListener('pointercancel', onCancel, true);
+        d.removeEventListener('pointercancel', onUp, true);
         d.removeEventListener('click', swallow, true);
-        d.removeEventListener('keydown', onKey, true);
-        d.removeEventListener('wheel', onWheel, { capture:true });
       }
       /* eine Stufe weiter */
       function advance(x, y){
@@ -364,7 +399,6 @@
         }
         if (zoom.stage === 1 && o.lupeMode === 'both'){   // Stufe 2: heranzoomen, auf den markierten Punkt
           applyZoom(zoom.x, zoom.y);
-          zoom.spot.classList.add('zoomed');              // Abdunklung zurücknehmen, der Zoom fokussiert schon
           zoom.stage = 2;
           return;
         }
@@ -374,69 +408,25 @@
       function onDown(ev){
         if (ev.target.closest && ev.target.closest(SKIP)) return;
         if (!zoom.el){ resetZoom(); return; }
-        pts[ev.pointerId] = { x:ev.clientX, y:ev.clientY };
-        if (Object.keys(pts).length === 2){              // zweiter Finger: ab jetzt Grösse statt Position
-          pinch.active = true; pinch.live = false;       // wirkt erst ab echter Abstandsänderung
-          pinch.d0 = pinchDist(); pinch.r0 = radius;
-          drag.active = false;
-        } else {
-          drag.active = true; drag.moved = false;
-          drag.x = ev.clientX; drag.y = ev.clientY; drag.id = ev.pointerId;
-        }
+        drag.active = true; drag.moved = false;
+        drag.x = ev.clientX; drag.y = ev.clientY; drag.id = ev.pointerId;
         ev.preventDefault(); ev.stopPropagation();
       }
       function onMove(ev){
-        if (pts[ev.pointerId]){ pts[ev.pointerId].x = ev.clientX; pts[ev.pointerId].y = ev.clientY; }
-        if (pinch.active){
-          var dNow = pinchDist();
-          /* Erst ab 24 px Abstandsänderung skalieren: ein aufliegender Handballen
-             liegt still und darf den Kreis nicht springen lassen. */
-          if (!pinch.live && Math.abs(dNow - pinch.d0) > 24) pinch.live = true;
-          if (pinch.live && pinch.d0 > 0 && dNow > 0) setRadius(pinch.r0 * (dNow / pinch.d0));
-          ev.preventDefault(); ev.stopPropagation();
-          return;
-        }
         if (!drag.active || ev.pointerId !== drag.id) return;
         if (!drag.moved){
           var dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
-          if (dx*dx + dy*dy < 100) return;                // erst ab ~10 px als Ziehen werten (Finger wackelt)
+          if (dx*dx + dy*dy < 64) return;                 // erst ab ~8 px als Ziehen werten
           drag.moved = true;
         }
         if (zoom.stage === 1 && o.lupeMode !== 'zoom') moveSpot(ev.clientX, ev.clientY);
         ev.preventDefault(); ev.stopPropagation();
       }
       function onUp(ev){
-        delete pts[ev.pointerId];
-        if (pinch.active){                                // Finger weg: Pinch beenden, kein Stufenwechsel
-          if (Object.keys(pts).length < 2){ pinch.active = false; pinch.live = false; drag.active = false; }
-          ev.preventDefault(); ev.stopPropagation();
-          return;
-        }
         if (!drag.active || ev.pointerId !== drag.id) return;
         drag.active = false;
         if (!drag.moved) advance(ev.clientX, ev.clientY);
         ev.preventDefault(); ev.stopPropagation();
-      }
-      /* Vom System abgebrochene Geste: nur aufräumen. Ein Abbruch ist keine Eingabe –
-         früher hat er hier eine Stufe weitergeschaltet. */
-      function onCancel(ev){
-        delete pts[ev.pointerId];
-        if (Object.keys(pts).length < 2){ pinch.active = false; pinch.live = false; }
-        if (drag.id === ev.pointerId){ drag.active = false; drag.moved = false; }
-      }
-      /* Escape beendet den Fokus – und zwar bevor reveal daraus die Folienübersicht macht */
-      function onKey(ev){
-        if (ev.key !== 'Escape' && ev.key !== 'Esc') return;
-        if (!zoom.on && !zoom.armed) return;
-        ev.preventDefault(); ev.stopPropagation();
-        resetZoom();
-      }
-      /* Mausrad ändert die Kreisgrösse (das Gegenstück zum Pinch am Board) */
-      function onWheel(ev){
-        if (!zoom.on && !zoom.armed) return;
-        if (ev.target.closest && ev.target.closest(SKIP)) return;
-        ev.preventDefault(); ev.stopPropagation();
-        setRadius(radius - (ev.deltaY > 0 ? 14 : -14));
       }
       function swallow(ev){                               // reveal darf im Fokusmodus nicht blättern
         if (ev.target.closest && ev.target.closest(SKIP)) return;
@@ -445,33 +435,29 @@
       function lupe(){
         activity();
         if (zoom.on || zoom.armed){ resetZoom(); return; }
-        if (wb.on) setBoard(false);                       // auf weisser Tafel gibt es nichts abzudunkeln
         zoom.el = targetEl();
         if (!zoom.el) return;
         if (penState >= 0){ penState = -1; applyPen(); }  // Stift und Fokus schliessen sich aus
-        zoom.armed = true; zoom.stage = 0; radius = o.spotRadius;
-        host.classList.add('tc-focus');   // Berührungen gehören ab jetzt uns
+        zoom.armed = true; zoom.stage = 0;
         lupeBtn.classList.add('active');
         d.addEventListener('pointerdown', onDown, true);
         d.addEventListener('pointermove', onMove, true);
         d.addEventListener('pointerup', onUp, true);
-        d.addEventListener('pointercancel', onCancel, true);
+        d.addEventListener('pointercancel', onUp, true);
         d.addEventListener('click', swallow, true);
-        d.addEventListener('keydown', onKey, true);
-        d.addEventListener('wheel', onWheel, { capture:true, passive:false });
       }
 
-      /* neue Folie: Whiteboard zu, Markierungen weg, Zoom zurück (Timer läuft weiter) */
-      if (deck.on) deck.on('slidechanged', function(){
-        if (wb.on) setBoard(false);
-        clearAnnot(); resetZoom();
+      /* Neue Folie: Whiteboard zu, Zoom zurück, Timer läuft weiter. Die
+         Markierungen der verlassenen Folie werden gesichert und die der neuen
+         wieder aufgetragen (keepAnnotations:false loescht sie stattdessen). */
+      if (deck.on) deck.on('slidechanged', function(ev){
+        var vorher = (ev && ev.previousSlide) || null;
+        var jetzt  = (ev && ev.currentSlide) || hier();
+        if (wb.on) setBoard(false, vorher);       // Tafelbild gehoert zu keiner Folie
+        else if (pen.canvas) saveAnnot(vorher);
+        resetZoom();
+        if (pen.canvas) loadAnnot(jetzt);
       });
-      /* Übersicht oder Pause: Fokus beenden. Sonst schluckt er die Tipps, mit denen
-         man in der Übersicht eine Folie auswählt – egal ob per Button, Taste oder API. */
-      if (deck.on){
-        deck.on('overviewshown', function(){ if (zoom.on || zoom.armed) resetZoom(); });
-        deck.on('paused',        function(){ if (zoom.on || zoom.armed) resetZoom(); });
-      }
 
       function lupeTitle(){
         if (o.lupeMode === 'zoom') return 'Lupe – Stelle antippen zum Zoomen';
@@ -502,7 +488,7 @@
           b.addEventListener('pointerdown', function(ev){
             ev.stopPropagation();
             longPressed = false;
-            lp = setTimeout(function(){ longPressed = true; clearAnnot(); }, 550);   // Langdruck = löschen
+            lp = setTimeout(function(){ longPressed = true; clearAnnot(); }, 550);   // Langdruck = löschen (auch aus dem Gedaechtnis)
           });
           var cancelLP = function(){ if (lp){ clearTimeout(lp); lp = null; } };
           b.addEventListener('pointerup', cancelLP);

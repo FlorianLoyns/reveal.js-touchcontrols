@@ -1,6 +1,6 @@
 {
   "name": "reveal.js-touchcontrols",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "On-screen controls that make reveal.js easy to operate on touch displays and smartboards: annotate, whiteboard, spotlight & zoom, timer, pause, overview, fullscreen.",
   "keywords": [
     "reveal",
