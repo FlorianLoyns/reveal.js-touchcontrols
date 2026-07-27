@@ -129,6 +129,10 @@ The default button order groups writing (pen, whiteboard), showing (focus), clas
 
 Star the repo.
 
+## Imprint
+
+Responsible: Florian Loyns — [imprint & privacy notice](https://florianloyns.com/Impressum/) (German)
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Thanks to Hakim El Hattab (reveal.js) and Martijn De Jongh (Smallcontrol).
