@@ -96,10 +96,21 @@ Reveal.initialize({
 | `spotDim` | `0.55` | How much the surroundings are dimmed (0–1) |
 | `zoomScale` | `2` | Magnification of the zoom step |
 | `keepAnnotations` | `true` | Keep pen marks on their slide for the session; `false` clears them on every slide change |
+| `fadePen` | `true` | Add a last pen stage that draws in a fading ink; `false` removes that stage |
+| `fadeInk` | `'#E5484D'` | Colour of the fading strokes |
+| `fadeMs` | `1800` | How long a fading stroke lives, in milliseconds |
 
 The default button order groups writing (pen, whiteboard), showing (focus), classroom (timer) and presentation controls (pause, overview, fullscreen).
 
 ## Changelog
+
+**1.4.0**
+
+- The pen button gained a **last stage that fades**: strokes drawn in it disappear by themselves after a moment. It is for the pointing you do while talking — circle a value, underline a word, draw an arrow — where the mark has done its job the second the sentence is over. Nobody has to remember to wipe the slide.
+- The fading strokes live on their own canvas, so permanent annotations underneath are untouched: you can keep a diagram on the slide and still point at parts of it.
+- Strokes are stored with a timestamp and repainted each frame at their own opacity, rather than the whole surface being dimmed repeatedly. Repeated dimming stalls at low alpha because of 8-bit rounding — the marks would never quite vanish. This way they do, and they fade out softly instead of linearly.
+- Long-press erase clears the fading layer as well; switching to the whiteboard returns the pen to its first colour.
+- New options `fadePen`, `fadeInk` and `fadeMs`; set `fadePen: false` for the previous behaviour.
 
 **1.3.0**
 

@@ -1,10 +1,11 @@
 /*!
- * reveal.js-touchcontrols 1.3.0
+ * reveal.js-touchcontrols 1.4.0
  * On-screen controls for touch displays / smartboards.
  * Bildschirm-Bedienung für Touch-Displays / Smartboards.
  * Buttons: pen · whiteboard · focus · timer · pause · overview · fullscreen
  * Focus: tap a spot to dim its surroundings, tap again to zoom in, drag to move.
  * Pen marks stay on their slide for the whole session (keepAnnotations).
+ * The last pen stage draws in a fading ink that clears itself (fadePen).
  * @author  Florian Loyns
  * @license MIT
  * Companion to Smallcontrol by Martijn De Jongh (Martino).
@@ -53,6 +54,7 @@
     + ".reveal.has-dark-background .touchcontrols.wb-on button.active{background:" + o.accent + ";color:#fff}"
     + ".reveal .touchcontrols button svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}"
     + ".reveal .touchcontrols-annot{position:fixed;inset:0;z-index:45;pointer-events:none;touch-action:none}"
+    + ".reveal .touchcontrols-fade{position:fixed;inset:0;z-index:47;pointer-events:none;touch-action:none}"
     + ".reveal .touchcontrols-annot.on{cursor:" + penCursor(o.inks[0]) + "}"
     + ".reveal .touchcontrols-board{position:fixed;inset:0;z-index:44;background:#fff;display:none}"
     + ".reveal .touchcontrols-board.on{display:block}"
@@ -68,7 +70,7 @@
     + ".reveal .touchcontrols-timer.done{background:#C0392B;animation:tc-pulse 1s ease-in-out infinite}"
     + "@keyframes tc-pulse{0%,100%{opacity:1}50%{opacity:.35}}"
     + ".reveal .controls{z-index:50}"
-    + "@media print{.reveal .touchcontrols,.reveal .touchcontrols-annot,.reveal .touchcontrols-board,.reveal .touchcontrols-timer,.reveal .touchcontrols-spot{display:none !important}}";
+    + "@media print{.reveal .touchcontrols,.reveal .touchcontrols-annot,.reveal .touchcontrols-fade,.reveal .touchcontrols-board,.reveal .touchcontrols-timer,.reveal .touchcontrols-spot{display:none !important}}";
     var s = document.createElement('style');
     s.id = 'touchcontrols-css'; s.textContent = css;
     document.head.appendChild(s);
@@ -105,7 +107,12 @@
         spotDim: (c.spotDim != null) ? c.spotDim : 0.55,
         zoomScale: c.zoomScale || 2,
         /* Markierungen beim Folienwechsel behalten statt loeschen */
-        keepAnnotations: (c.keepAnnotations != null) ? c.keepAnnotations : true
+        keepAnnotations: (c.keepAnnotations != null) ? c.keepAnnotations : true,
+        /* Fluechtiger Stift: eine weitere Stufe am Stiftknopf, deren Striche
+           von selbst verblassen - zum Zeigen im Reden, ohne Aufraeumen */
+        fadePen: (c.fadePen != null) ? c.fadePen : true,
+        fadeInk: c.fadeInk || '#E5484D',
+        fadeMs: c.fadeMs || 1800
       };
       /* In Stufe 2 dunkler es weniger ab – die Vergrösserung fokussiert schon selbst */
       o.spotDimZoom = (c.spotDimZoom != null) ? c.spotDimZoom : +(o.spotDim * 0.64).toFixed(2);
@@ -130,7 +137,96 @@
 
       /* ---- Stift: Annotation, zyklische Farben, Langdruck = Folie löschen ---- */
       var pen = { on:false, canvas:null, ctx:null, drawing:false }, penBtn = null, longPressed = false;
-      var currentInk = o.inks[0], penState = -1;   // -1 = aus, sonst Index in o.inks
+      var currentInk = o.inks[0], penState = -1;   // -1 = aus, 0..n-1 Farbe, n = fluechtig
+      /* Fluechtiger Stift: eigene Flaeche, damit die bleibenden Markierungen
+         nicht mitverblassen. Sie nimmt keine Eingaben entgegen - gezeichnet
+         wird weiter auf der Annot-Flaeche, gemalt nur woanders hin.
+         Statt die Flaeche Bild um Bild abzudunkeln (das bleibt bei kleinen
+         Werten stehen, weil 8 Bit Deckkraft nicht feiner rechnen koennen),
+         merken wir uns die Striche und zeichnen sie jedes Bild neu - mit der
+         Deckkraft, die zu ihrem Alter passt. Ein Strich verblasst als Ganzes
+         und erst, wenn er fertig ist: sonst waere der Anfang einer
+         Unterstreichung schon weg, waehrend die Hand noch am Ende malt. */
+      var fade = { canvas:null, ctx:null, raf:null, striche:[], offen:null };
+      function fluechtig(){ return o.fadePen && penState === o.inks.length; }
+      function jetztMs(){
+        return (window.performance && performance.now) ? performance.now() : Date.now();
+      }
+      function ensureFade(){
+        if (fade.canvas) return;
+        var cv = d.createElement('canvas');
+        cv.className = 'touchcontrols-fade';
+        fade.ctx = cv.getContext('2d');
+        fade.canvas = cv;
+        sizeFade();
+        window.addEventListener('resize', sizeFade);
+        host.appendChild(cv);
+      }
+      function sizeFade(){
+        if (!fade.canvas) return;
+        var dpr = window.devicePixelRatio || 1;
+        fade.canvas.width  = Math.round(window.innerWidth  * dpr);
+        fade.canvas.height = Math.round(window.innerHeight * dpr);
+        fade.canvas.style.width  = window.innerWidth  + 'px';
+        fade.canvas.style.height = window.innerHeight + 'px';
+        fade.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      function wischFade(){
+        if (!fade.ctx) return;
+        var x = fade.ctx;
+        x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
+        x.clearRect(0, 0, fade.canvas.width, fade.canvas.height);
+        x.restore();
+      }
+      function clearFade(){
+        fade.striche = []; fade.offen = null;
+        wischFade();
+        if (fade.raf){ cancelAnimationFrame(fade.raf); fade.raf = null; }
+      }
+      /* Deckkraft nach Alter: erst eine Weile voll stehen bleiben, dann weich
+         auslaufen. Ein noch offener Strich (die Hand malt) bleibt voll. */
+      function deckkraft(st, ts){
+        if (st.ende == null) return 1;
+        var halt = o.fadeMs * 0.4, alt = ts - st.ende;
+        if (alt <= halt) return 1;
+        var p = (alt - halt) / (o.fadeMs - halt);
+        if (p >= 1) return 0;
+        return (1 - p) * (1 - p);            // weich auslaufen statt linear
+      }
+      function fadeStep(ts){
+        if (!fade.ctx){ fade.raf = null; return; }
+        var x = fade.ctx, lebt = 0;
+        wischFade();
+        x.save();
+        x.lineWidth = o.penWidth; x.lineCap = 'round'; x.lineJoin = 'round';
+        x.strokeStyle = o.fadeInk;
+        for (var i = 0; i < fade.striche.length; i++){
+          var st = fade.striche[i], a = deckkraft(st, ts);
+          if (a <= 0.01) continue;
+          lebt++;
+          x.globalAlpha = a;
+          x.beginPath();
+          x.moveTo(st.p[0], st.p[1]);
+          if (st.p.length === 2) x.lineTo(st.p[0] + 0.01, st.p[1]);   // blosses Tippen: Punkt
+          for (var k = 2; k < st.p.length; k += 2) x.lineTo(st.p[k], st.p[k + 1]);
+          x.stroke();
+        }
+        x.restore();
+        if (!lebt){ clearFade(); return; }
+        if (fade.striche.length > 40) fade.striche = fade.striche.slice(-20);
+        fade.raf = requestAnimationFrame(fadeStep);
+      }
+      function fadeStart(px, py){
+        ensureFade();
+        fade.offen = { p:[px, py], ende:null };
+        fade.striche.push(fade.offen);
+        if (!fade.raf) fade.raf = requestAnimationFrame(fadeStep);
+      }
+      function fadeZu(px, py){ if (fade.offen) fade.offen.p.push(px, py); }
+      function fadeEnde(){
+        if (fade.offen){ fade.offen.ende = jetztMs(); fade.offen = null; }
+        if (!fade.raf && fade.ctx) fade.raf = requestAnimationFrame(fadeStep);
+      }
       var lastX = 0, lastY = 0, activePtr = null;  // ein Finger/Stift zeichnet, der Rest wird ignoriert
 
       /* Markierungen je Folie merken (keepAnnotations). Gespeichert wird nur der
@@ -206,28 +302,40 @@
           activePtr = e.pointerId;
           if (cv.setPointerCapture){ try { cv.setPointerCapture(e.pointerId); } catch(_){} }
           pen.drawing = true; lastX = e.clientX; lastY = e.clientY;
-          markPoint(lastX, lastY);
-          var x = pen.ctx; inkStyle(x);
-          x.beginPath(); x.moveTo(lastX, lastY); x.lineTo(lastX + 0.01, lastY); x.stroke();   // Punkt bei blossem Tippen
+          if (fluechtig()){
+            fadeStart(lastX, lastY);                 // wird jedes Bild neu gezeichnet
+          } else {
+            markPoint(lastX, lastY);
+            var x = pen.ctx; inkStyle(x);
+            x.beginPath(); x.moveTo(lastX, lastY); x.lineTo(lastX + 0.01, lastY); x.stroke();   // Punkt bei blossem Tippen
+          }
           e.preventDefault(); e.stopPropagation();
         });
         cv.addEventListener('pointermove', function(e){
           if (!pen.drawing || e.pointerId !== activePtr) return;
           var evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
           if (!evs.length) evs = [e];
-          var x = pen.ctx; inkStyle(x);
-          x.beginPath(); x.moveTo(lastX, lastY);
-          for (var i = 0; i < evs.length; i++){       // nur die neuen Segmente zeichnen
-            x.lineTo(evs[i].clientX, evs[i].clientY);
-            lastX = evs[i].clientX; lastY = evs[i].clientY;
-            markPoint(lastX, lastY);
+          if (fluechtig()){
+            for (var j = 0; j < evs.length; j++){
+              lastX = evs[j].clientX; lastY = evs[j].clientY;
+              fadeZu(lastX, lastY);
+            }
+          } else {
+            var x = pen.ctx; inkStyle(x);
+            x.beginPath(); x.moveTo(lastX, lastY);
+            for (var i = 0; i < evs.length; i++){     // nur die neuen Segmente zeichnen
+              x.lineTo(evs[i].clientX, evs[i].clientY);
+              lastX = evs[i].clientX; lastY = evs[i].clientY;
+              markPoint(lastX, lastY);
+            }
+            x.stroke();
           }
-          x.stroke();
           e.preventDefault();
         });
         function endStroke(e){
           if (e.pointerId !== activePtr) return;
           pen.drawing = false; activePtr = null;
+          if (fluechtig()) fadeEnde();               // ab jetzt laeuft die Uhr
         }
         cv.addEventListener('pointerup', endStroke);
         cv.addEventListener('pointercancel', endStroke);   // vom System abgebrochene Gesten sauber beenden
@@ -248,6 +356,7 @@
       }
       function clearAnnot(sec){
         clearCanvas();
+        clearFade();                    // Langdruck raeumt die Folie ganz
         forget(sec || hier());
       }
       function applyPen(){
@@ -255,10 +364,17 @@
         if (penState < 0){
           pen.on = false;
           penBtn.style.borderColor = ''; penBtn.style.color = '';
+        } else if (fluechtig()){
+          pen.on = true; currentInk = o.fadeInk;
+          ensureFade();
+          penBtn.style.borderColor = currentInk; penBtn.style.color = currentInk;
+          penBtn.style.borderStyle = 'dashed';        // gestrichelt = fluechtig
         } else {
           pen.on = true; currentInk = o.inks[penState];
           penBtn.style.borderColor = currentInk; penBtn.style.color = currentInk;   // Button zeigt aktive Farbe
+          penBtn.style.borderStyle = '';
         }
+        if (penState < 0) penBtn.style.borderStyle = '';
         pen.canvas.style.pointerEvents = pen.on ? 'auto' : 'none';
         pen.canvas.classList.toggle('on', pen.on);
         pen.canvas.style.cursor = pen.on ? penCursor(currentInk) : '';
@@ -267,7 +383,9 @@
       function penTap(){
         if (zoom.on || zoom.armed) resetZoom();           // Fokus und Stift schliessen sich aus
         penState = penState + 1;
-        if (penState >= o.inks.length) penState = -1;   // nach letzter Farbe: aus
+        var letzte = o.fadePen ? o.inks.length : o.inks.length - 1;
+        if (penState > letzte) penState = -1;             // nach der letzten Stufe: aus
+        if (!fluechtig()) clearFade();                    // beim Verlassen nichts stehen lassen
         applyPen();
       }
 
@@ -287,7 +405,7 @@
         bar.classList.toggle('wb-on', on);
         if (wbBtn) wbBtn.classList.toggle('active', on);
         if (on){
-          if (penState < 0){ penState = 0; applyPen(); }   // gleich losschreiben können
+          if (penState < 0 || fluechtig()){ penState = 0; applyPen(); }   // auf der Tafel bleibt es stehen
         } else {
           clearAnnot(sec || hier());                        // Tafelbild verwerfen
           if (penState >= 0){ penState = -1; applyPen(); }
@@ -532,6 +650,7 @@
         if (wb.on) setBoard(false, vorher);       // Tafelbild gehoert zu keiner Folie
         else if (pen.canvas) saveAnnot(vorher);
         resetZoom();
+        clearFade();
         if (pen.canvas) loadAnnot(jetzt);
       });
       /* Übersicht oder Pause: Fokus beenden. Sonst schluckt er die Tipps, mit denen
@@ -541,6 +660,11 @@
         deck.on('paused',        function(){ if (zoom.on || zoom.armed) resetZoom(); });
       }
 
+      function penTitle(){
+        var t = 'Stift – markieren · lang drücken löscht die Folie';
+        if (o.fadePen) t += ' · letzte Stufe: Striche verblassen von selbst';
+        return t;
+      }
       function lupeTitle(){
         if (o.lupeMode === 'zoom') return 'Lupe – Stelle antippen zum Zoomen';
         if (o.lupeMode === 'spot') return 'Fokus – Stelle antippen hebt sie hervor · ziehen bewegt den Kreis';
@@ -549,7 +673,7 @@
 
       /* ---- Buttons aus der Konfiguration ---- */
       var ALL = {
-        pen:        { ic:ICON.pen,   t:'Stift – markieren · lang drücken löscht die Folie', pen:true },
+        pen:        { ic:ICON.pen,   t:penTitle(), pen:true },
         whiteboard: { ic:ICON.board, t:'Whiteboard – weiße Fläche zum Schreiben', wb:true, fn:board },
         zoom:       { ic:ICON.zoom,  t:lupeTitle(), lupe:true, fn:lupe },
         timer:      { ic:ICON.timer, t:'Timer – Tippen wechselt ' + o.timerMinutes.join(' · ') + ' min, danach aus', tm:true, fn:timerTap },
