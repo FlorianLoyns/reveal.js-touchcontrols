@@ -69,6 +69,8 @@ Reveal.initialize({
     timerMinutes: [5, 10, 15],    // timer steps, cycled per tap
     autohide: true,
     autohideDelay: 3500,          // ms before hiding
+    wakeZone: [340, 150],         // only pointer activity in this corner (px) wakes the bar; false = anywhere
+    wakeOnKey: false,             // true = every key press (presenter, arrow keys) wakes it too
     lupeMode: 'both',             // 'both' | 'spot' | 'zoom'
     spotRadius: 120,              // spotlight radius, px
     spotDim: 0.55,                // how much the surroundings dim, 0–1
@@ -91,6 +93,8 @@ Reveal.initialize({
 | `timerMinutes` | `[5,10,15]` | Timer steps in minutes, cycled per tap |
 | `autohide` | `true` | Hide the toolbar when idle |
 | `autohideDelay` | `3500` | ms before hiding |
+| `wakeZone` | `[340, 150]` | Width and height (px) of the corner area, measured from the bar’s corner, in which pointer movement or a tap brings the hidden bar back. It always covers the whole bar. `false` = anywhere on the screen (behaviour up to 1.4) |
+| `wakeOnKey` | `false` | `true` = every key press (presenter, arrow keys) also brings the bar back (behaviour up to 1.4) |
 | `lupeMode` | `'both'` | Focus behaviour: `'both'` (dim, then zoom), `'spot'` (dim only), `'zoom'` (zoom only, pre-1.2 behaviour) |
 | `spotRadius` | `120` | Radius of the spotlight circle (px) |
 | `spotDim` | `0.55` | How much the surroundings are dimmed (0–1) |
@@ -103,6 +107,8 @@ Reveal.initialize({
 The default button order groups writing (pen, whiteboard), showing (focus), classroom (timer) and presentation controls (pause, overview, fullscreen).
 
 ## Changelog
+
+**1.5.0** — The hidden bar no longer pops up on every interaction. Up to 1.4 any mouse move, any tap and any key press brought it back for a few seconds — so with a presenter or the arrow keys it reappeared after every slide change and sat on top of whatever is in the bottom-left corner (in many decks the source line). Now only pointer activity in a corner area around the bar wakes it (`wakeZone`), and key presses don’t wake it at all (`wakeOnKey`). A tap on reveal’s arrows, a stroke in the middle of the slide or a click on the presenter leaves it hidden. Set `wakeZone: false, wakeOnKey: true` for the previous behaviour.
 
 **1.4.1** — Print detection unified across the plugin family: every print rule now applies both in the browser print dialog and in reveal’s `?print-pdf` view, so the on-screen preview looks like the PDF; the print view is recognised the same way everywhere (`?print-pdf` or `view: 'print'`).
 

@@ -1,11 +1,12 @@
 /*!
- * reveal.js-touchcontrols 1.4.1
+ * reveal.js-touchcontrols 1.5.0
  * On-screen controls for touch displays / smartboards.
  * Bildschirm-Bedienung für Touch-Displays / Smartboards.
  * Buttons: pen · whiteboard · focus · timer · pause · overview · fullscreen
  * Focus: tap a spot to dim its surroundings, tap again to zoom in, drag to move.
  * Pen marks stay on their slide for the whole session (keepAnnotations).
  * The last pen stage draws in a fading ink that clears itself (fadePen).
+ * The bar wakes only for pointer activity near its corner (wakeZone), not on key presses.
  * @author  Florian Loyns
  * @license MIT
  * Companion to Smallcontrol by Martijn De Jongh (Martino).
@@ -125,7 +126,12 @@
            von selbst verblassen - zum Zeigen im Reden, ohne Aufraeumen */
         fadePen: (c.fadePen != null) ? c.fadePen : true,
         fadeInk: c.fadeInk || '#E5484D',
-        fadeMs: c.fadeMs || 1800
+        fadeMs: c.fadeMs || 1800,
+        /* Wecken: nur Zeiger/Hand in der Ecke der Leiste holt sie zurück.
+           wakeZone = [Breite, Höhe] in px ab der Ecke; false = überall (Verhalten bis 1.4).
+           wakeOnKey: true = auch jeder Tastendruck (Presenter, Pfeiltasten) weckt sie. */
+        wakeZone: (c.wakeZone === false) ? false : ((c.wakeZone && c.wakeZone.length === 2) ? c.wakeZone : [340, 150]),
+        wakeOnKey: (c.wakeOnKey != null) ? c.wakeOnKey : false
       };
       /* In Stufe 2 dunkler es weniger ab – die Vergrösserung fokussiert schon selbst */
       o.spotDimZoom = (c.spotDimZoom != null) ? c.spotDimZoom : +(o.spotDim * 0.64).toFixed(2);
@@ -730,8 +736,23 @@
 
       host.appendChild(bar);
 
+      /* Weckzone: Die Leiste ist für die Hand am Board gedacht. Ein Tipp auf die
+         Weiter-Pfeile, ein Strich mitten auf der Folie oder ein Klick auf dem
+         Presenter soll sie nicht jedes Mal über die Quellenzeile legen. */
+      function inWakeZone(ev){
+        if (!o.wakeZone) return true;
+        if (ev.target && ev.target.closest && ev.target.closest('.touchcontrols')) return true;
+        if (ev.clientX == null || ev.clientY == null) return true;
+        var r = bar.getBoundingClientRect();
+        var w = Math.max(o.wakeZone[0], (o.side === 'right' ? (window.innerWidth - r.left) : r.right) + 24);
+        var x = (o.side === 'right') ? (window.innerWidth - ev.clientX) : ev.clientX;
+        return x <= w && (window.innerHeight - ev.clientY) <= o.wakeZone[1];
+      }
+      function wake(ev){ if (inWakeZone(ev)) activity(); }
+
       if (o.autohide){
-        ['pointermove','pointerdown','keydown'].forEach(function(ev){ document.addEventListener(ev, activity, true); });
+        ['pointermove','pointerdown'].forEach(function(ev){ document.addEventListener(ev, wake, true); });
+        if (o.wakeOnKey) document.addEventListener('keydown', activity, true);
       }
       activity();
     }
