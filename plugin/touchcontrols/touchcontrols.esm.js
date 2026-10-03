@@ -1,5 +1,5 @@
 /*!
- * reveal.js-touchcontrols 1.4.0
+ * reveal.js-touchcontrols 1.4.1
  * On-screen controls for touch displays / smartboards.
  * Bildschirm-Bedienung für Touch-Displays / Smartboards.
  * Buttons: pen · whiteboard · focus · timer · pause · overview · fullscreen
@@ -12,7 +12,25 @@
  * Docs & options: see README.
  */
 
+
 'use strict';
+
+  /* ---- Druck: überall gleich erkannt und gleich ausgegeben ----
+     reveal.js baut die Druckansicht mit ?print-pdf in der URL (oder view:'print'
+     in der Konfiguration) und setzt dann nur Klassen an <html>; @media print greift
+     erst im Druckdialog. Darum jede Druckregel zweimal: für den Druckdialog und
+     für die ?print-pdf-Ansicht – so sieht die Vorschau im Browser aus wie das PDF. */
+  function isPrintView(deck){
+    if (/(?:\?|&)print-pdf\b/i.test(window.location.search)) return true;
+    var c = deck && deck.getConfig ? deck.getConfig() : null;
+    return !!(c && c.view === 'print');
+  }
+  function printCSS(css){
+    var pdf = css.replace(/(^|\})([^{}]+)\{/g, function (m, vor, sel) {
+      return vor + sel.split(',').map(function (s) { return 'html.print-pdf ' + s.trim(); }).join(',') + '{';
+    });
+    return '@media print{' + css + '}' + pdf;
+  }
 
   function svg(p){ return '<svg viewBox="0 0 24 24">' + p + '</svg>'; }
   var ICON = {
@@ -65,7 +83,7 @@
     + ".reveal .touchcontrols-timer.done{background:#C0392B;animation:tc-pulse 1s ease-in-out infinite}"
     + "@keyframes tc-pulse{0%,100%{opacity:1}50%{opacity:.35}}"
     + ".reveal .controls{z-index:50}"
-    + "@media print{.reveal .touchcontrols,.reveal .touchcontrols-annot,.reveal .touchcontrols-fade,.reveal .touchcontrols-board,.reveal .touchcontrols-timer,.reveal .touchcontrols-spot{display:none !important}}";
+    + printCSS(".reveal .touchcontrols,.reveal .touchcontrols-annot,.reveal .touchcontrols-fade,.reveal .touchcontrols-board,.reveal .touchcontrols-timer,.reveal .touchcontrols-spot{display:none !important}");
     var s = document.createElement('style');
     s.id = 'touchcontrols-css'; s.textContent = css;
     document.head.appendChild(s);
