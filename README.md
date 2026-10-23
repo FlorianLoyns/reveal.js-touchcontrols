@@ -2,7 +2,7 @@
 
 [![reveal.js plugin](https://img.shields.io/badge/reveal.js-plugin-2C4A6E.svg)](https://revealjs.com) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-On-screen controls that make [reveal.js](https://revealjs.com) easy to operate on touch displays and smartboards: annotate with a pen, open a whiteboard, focus on a detail, run a countdown timer, blank the screen, open the overview, go fullscreen. No keyboard or mouse needed. Standalone (ships its own CSS) and a natural companion to [Smallcontrol](https://github.com/Martinomagnifico/reveal.js-smallcontrol).
+On-screen controls that make [reveal.js](https://revealjs.com) easy to operate on touch displays and smartboards: annotate with a pen, open a whiteboard, focus on a detail, run a countdown timer, blank the screen, open the overview, go fullscreen, print the slides. No keyboard or mouse needed. Standalone (ships its own CSS) and a natural companion to [Smallcontrol](https://github.com/Martinomagnifico/reveal.js-smallcontrol).
 
 **[Live demo](https://florianloyns.github.io/reveal.js-touchcontrols/demo.html)**
 
@@ -47,6 +47,7 @@ npm install reveal.js-touchcontrols
 - **Focus** — tap the magnifier, then tap a spot on the slide. The surroundings dim while staying readable, so the audience keeps the context: useful for pointing at one row of a table or one region of a diagram. Tap again and that spot is zoomed in — it stays exactly where it is on screen, so the circle keeps framing it. A third tap resets. While the spotlight is on, drag it with your finger to sweep across a table or walk through a diagram. Set `lupeMode` to `'spot'` or `'zoom'` if you only want one of the two.
 - **Timer** — tap to cycle through 5 · 10 · 15 minutes (configurable); a large countdown appears above the toolbar, pulses red at 0:00, and keeps running across slide changes. One more tap turns it off.
 - **Pause · Overview · Fullscreen** — one tap each.
+- **Print** — shown on the title slide only. Opens the print view (`?print-pdf`) in a new tab and starts the print dialog there once the slides and fonts are ready — slides only, no speaker notes. Works best in Chrome or Edge.
 
 Buttons turn white automatically on dark slides, and the toolbar fades out when idle (returns on movement — the timer countdown always stays visible).
 
@@ -65,7 +66,7 @@ Reveal.initialize({
     hover: 'rgba(44,74,110,.10)', // button hover colour
     inks: ['#D14A4A', '#2B6CB0'], // pen colours, cycled
     penWidth: 4,                  // stroke width
-    buttons: ['pen','whiteboard','zoom','timer','pause','overview','fullscreen'], // which buttons + order
+    buttons: ['pen','whiteboard','zoom','timer','pause','overview','fullscreen','print'], // which buttons + order
     timerMinutes: [5, 10, 15],    // timer steps, cycled per tap
     autohide: true,
     autohideDelay: 3500,          // ms before hiding
@@ -89,7 +90,7 @@ Reveal.initialize({
 | `hover` | `'rgba(44,74,110,.10)'` | Button hover colour |
 | `inks` | `['#D14A4A','#2B6CB0']` | Pen colours, cycled |
 | `penWidth` | `4` | Stroke width |
-| `buttons` | all seven | Buttons shown, and their order |
+| `buttons` | all eight | Buttons shown, and their order |
 | `timerMinutes` | `[5,10,15]` | Timer steps in minutes, cycled per tap |
 | `autohide` | `true` | Hide the toolbar when idle |
 | `autohideDelay` | `3500` | ms before hiding |
@@ -104,9 +105,11 @@ Reveal.initialize({
 | `fadeInk` | `'#E5484D'` | Colour of the fading strokes |
 | `fadeMs` | `1800` | How long a fading stroke lives, in milliseconds |
 
-The default button order groups writing (pen, whiteboard), showing (focus), classroom (timer) and presentation controls (pause, overview, fullscreen).
+The default button order groups writing (pen, whiteboard), showing (focus), classroom (timer) and presentation controls (pause, overview, fullscreen, print). Leave `'print'` out of `buttons` if you don’t want the print button.
 
 ## Changelog
+
+**1.6.0** — New **print** button: visible on the title slide only, it opens the print view (`?print-pdf`) in a new tab and starts the print dialog there as soon as the slides are laid out (`pdf-ready`, with a fallback after 8 s). Prints the slides without speaker notes. Part of the default `buttons`; remove `'print'` to hide it.
 
 **1.5.0** — The hidden bar no longer pops up on every interaction. Up to 1.4 any mouse move, any tap and any key press brought it back for a few seconds — so with a presenter or the arrow keys it reappeared after every slide change and sat on top of whatever is in the bottom-left corner (in many decks the source line). Now only pointer activity in a corner area around the bar wakes it (`wakeZone`), and key presses don’t wake it at all (`wakeOnKey`). A tap on reveal’s arrows, a stroke in the middle of the slide or a click on the presenter leaves it hidden. Set `wakeZone: false, wakeOnKey: true` for the previous behaviour.
 

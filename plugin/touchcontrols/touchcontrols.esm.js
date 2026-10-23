@@ -1,8 +1,10 @@
 /*!
- * reveal.js-touchcontrols 1.5.0
+ * reveal.js-touchcontrols 1.6.0
  * On-screen controls for touch displays / smartboards.
  * Bildschirm-Bedienung für Touch-Displays / Smartboards.
- * Buttons: pen · whiteboard · focus · timer · pause · overview · fullscreen
+ * Buttons: pen · whiteboard · focus · timer · pause · overview · fullscreen · print
+ * Print (1.6): only on the title slide – opens the print view (?print-pdf) in a new
+ * tab and starts the print dialog there. Slides only, no speaker notes.
  * Focus: tap a spot to dim its surroundings, tap again to zoom in, drag to move.
  * Pen marks stay on their slide for the whole session (keepAnnotations).
  * The last pen stage draws in a fading ink that clears itself (fadePen).
@@ -41,7 +43,8 @@
     timer: svg('<circle cx="12" cy="13" r="7.5"/><path d="M12 9.5v3.5l2.6 1.6"/><path d="M9.5 2.5h5"/><path d="M12 2.5v3"/>'),
     pause: svg('<path d="M9 5v14"/><path d="M15 5v14"/>'),
     grid: svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
-    full: svg('<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>')
+    full: svg('<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>'),
+    print: svg('<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/><path d="M17.5 12h.01"/>')
   };
 
   function penCursor(color){
@@ -96,10 +99,31 @@
     else { (d.exitFullscreen || d.webkitExitFullscreen || function(){}).call(d); }
   }
 
+  /* ---- Drucken (1.6): Druckansicht in neuem Tab, dort Druckdialog ---- */
+  function openPrint(){
+    var u = new URL(window.location.href);
+    u.hash = '';
+    u.searchParams.set('print-pdf', '');
+    u.searchParams.set('autoprint', '1');
+    window.open(u.toString(), '_blank');
+  }
+  function autoPrint(deck){
+    if (!/(?:\?|&)autoprint=1\b/.test(window.location.search)) return;
+    var done = false;
+    function go(){
+      if (done) return; done = true;
+      var fonts = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+      fonts.then(function(){ setTimeout(function(){ window.print(); }, 800); });
+    }
+    if (deck.on) deck.on('pdf-ready', go);
+    setTimeout(go, 8000);   // Rückfall, falls das Ereignis ausbleibt
+  }
+
   var Plugin = {
     id: 'touchcontrols',
     init: function (deck) {
       var d = document;
+      if (isPrintView(deck)) autoPrint(deck);
       if (d.querySelector('.touchcontrols')) return;
       var host = deck.getRevealElement ? deck.getRevealElement() : d.body;
 
@@ -111,7 +135,7 @@
         hover: c.hover || 'rgba(44,74,110,.10)',
         inks: (c.inks && c.inks.length) ? c.inks : ['#D14A4A', '#2B6CB0'],
         penWidth: c.penWidth || 4,
-        buttons: (c.buttons && c.buttons.length) ? c.buttons : ['pen','whiteboard','zoom','timer','pause','overview','fullscreen'],
+        buttons: (c.buttons && c.buttons.length) ? c.buttons : ['pen','whiteboard','zoom','timer','pause','overview','fullscreen','print'],
         timerMinutes: (c.timerMinutes && c.timerMinutes.length) ? c.timerMinutes : [5, 10, 15],
         autohide: (c.autohide != null) ? c.autohide : true,
         autohideDelay: c.autohideDelay || 3500,
@@ -698,8 +722,10 @@
         timer:      { ic:ICON.timer, t:'Timer – Tippen wechselt ' + o.timerMinutes.join(' · ') + ' min, danach aus', tm:true, fn:timerTap },
         pause:      { ic:ICON.pause, t:'Pause – Bildschirm schwarz', fn:function(){ deck.togglePause(); } },
         overview:   { ic:ICON.grid,  t:'Folienübersicht', fn:function(){ deck.toggleOverview(); } },
-        fullscreen: { ic:ICON.full,  t:'Vollbild', fn:toggleFullscreen }
+        fullscreen: { ic:ICON.full,  t:'Vollbild', fn:toggleFullscreen },
+        print:      { ic:ICON.print, t:'Folien drucken – öffnet die Druckansicht in einem neuen Tab (am besten Chrome oder Edge)', pr:true, fn:openPrint }
       };
+      var printBtn = null;
       var items = o.buttons.map(function(k){ return ALL[k]; }).filter(Boolean);
 
       items.forEach(function (item) {
@@ -728,6 +754,7 @@
           if (item.lupe) lupeBtn = b;
           if (item.wb) wbBtn = b;
           if (item.tm) timerBtn = b;
+          if (item.pr) printBtn = b;
           b.addEventListener('pointerdown', function(ev){ ev.stopPropagation(); });
           b.addEventListener('click', function(ev){ ev.stopPropagation(); ev.preventDefault(); item.fn(); });
         }
@@ -735,6 +762,15 @@
       });
 
       host.appendChild(bar);
+
+      /* Druckknopf nur auf der Titelfolie (erste Folie) */
+      function showPrint(){
+        if (!printBtn) return;
+        var ix = deck.getIndices ? deck.getIndices() : { h:0, v:0 };
+        printBtn.style.display = (ix.h === 0 && !ix.v) ? '' : 'none';
+      }
+      showPrint();
+      if (deck.on){ deck.on('ready', showPrint); deck.on('slidechanged', showPrint); }
 
       /* Weckzone: Die Leiste ist für die Hand am Board gedacht. Ein Tipp auf die
          Weiter-Pfeile, ein Strich mitten auf der Folie oder ein Klick auf dem
