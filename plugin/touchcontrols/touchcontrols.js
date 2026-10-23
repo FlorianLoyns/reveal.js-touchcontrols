@@ -1,5 +1,5 @@
 /*!
- * reveal.js-touchcontrols 1.6.0
+ * reveal.js-touchcontrols 1.6.1
  * On-screen controls for touch displays / smartboards.
  * Bildschirm-Bedienung für Touch-Displays / Smartboards.
  * Buttons: pen · whiteboard · focus · timer · pause · overview · fullscreen · print
@@ -88,7 +88,7 @@
     + ".reveal.tc-focus,.reveal.tc-focus .slides{touch-action:none !important}"
     + ".reveal .touchcontrols-timer{position:fixed;" + pos + ";bottom:" + (o.bottom + 48) + "px;z-index:60;display:none;padding:6px 16px;border-radius:12px;background:" + o.accent + ";color:#fff;font-family:Inter,system-ui,-apple-system,sans-serif;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.5px}"
     + ".reveal .touchcontrols-timer.on{display:block}"
-    + ".reveal .touchcontrols-timer.done{background:#C0392B;animation:tc-pulse 1s ease-in-out infinite}"
+    + ".reveal .touchcontrols-timer.done{background:#D14A4A;animation:tc-pulse 1s ease-in-out infinite}"
     + "@keyframes tc-pulse{0%,100%{opacity:1}50%{opacity:.35}}"
     + ".reveal .controls{z-index:50}"
     + printCSS(".reveal .touchcontrols,.reveal .touchcontrols-annot,.reveal .touchcontrols-fade,.reveal .touchcontrols-board,.reveal .touchcontrols-timer,.reveal .touchcontrols-spot{display:none !important}");
