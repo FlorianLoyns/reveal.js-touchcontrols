@@ -109,6 +109,8 @@ The default button order groups writing (pen, whiteboard), showing (focus), clas
 
 ## Changelog
 
+**1.6.1** — Colours aligned with the plugin family: the timer turns the family red `#D14A4A` at 0:00 (was `#C0392B`).
+
 **1.6.0** — New **print** button: visible on the title slide only, it opens the print view (`?print-pdf`) in a new tab and starts the print dialog there as soon as the slides are laid out (`pdf-ready`, with a fallback after 8 s). Prints the slides without speaker notes. Part of the default `buttons`; remove `'print'` to hide it.
 
 **1.5.0** — The hidden bar no longer pops up on every interaction. Up to 1.4 any mouse move, any tap and any key press brought it back for a few seconds — so with a presenter or the arrow keys it reappeared after every slide change and sat on top of whatever is in the bottom-left corner (in many decks the source line). Now only pointer activity in a corner area around the bar wakes it (`wakeZone`), and key presses don’t wake it at all (`wakeOnKey`). A tap on reveal’s arrows, a stroke in the middle of the slide or a click on the presenter leaves it hidden. Set `wakeZone: false, wakeOnKey: true` for the previous behaviour.
