@@ -1,7 +1,7 @@
 {
   "name": "reveal.js-touchcontrols",
-  "version": "1.6.1",
-  "description": "On-screen controls that make reveal.js easy to operate on touch displays and smartboards: annotate, whiteboard, spotlight & zoom, timer, pause, overview, fullscreen, print.",
+  "version": "1.7.9",
+  "description": "Touch controls for reveal.js: pen, eraser, undo/redo, whiteboard, PNG export, magnifier with annotations, timer and more.",
   "keywords": [
     "reveal",
     "reveal.js",
@@ -15,7 +15,12 @@
     "timer",
     "zoom",
     "reveal-plugin",
-    "plugin"
+    "plugin",
+    "eraser",
+    "undo",
+    "redo",
+    "annotations",
+    "export"
   ],
   "homepage": "https://github.com/florianloyns/reveal.js-touchcontrols",
   "repository": {
