@@ -42,7 +42,7 @@ npm install reveal.js-touchcontrols
 
 ## Usage
 
-- **Pen** — repeatedly tap the same icon to cycle through **red → blue → fading ink → off** (or the colors listed in `inks`, followed by fading ink when enabled). **Hold the pen**, right-click it or Shift-click to open **Pen settings** for direct color selection or **Clear drawing…**. Clearing requires confirmation, can be undone and only affects the current slide or whiteboard. No long-press can accidentally erase your annotations. The active pen has a solid outline in the selected ink color; fading ink uses a dotted outline. Marks belong to individual slides and remain when navigating between slides. Set `keepAnnotations: false` for clearing them on slide changes. Reloading starts with clean slides unless `persistAnnotations: true` is enabled.
+- **Pen** — repeatedly tap the same icon to cycle through **red → blue → fading ink → off** (or the colors listed in `inks`, followed by fading ink when enabled). **Hold the pen** (about half a second) to **clear the current slide** completely, or the whiteboard while it is open. Other slides keep their notes, the selected ink stays the same, and Undo brings the drawing back. The active pen has a solid outline in the selected ink color; fading ink uses a dotted outline. Marks belong to individual slides and remain when navigating between slides. Set `keepAnnotations: false` for clearing them on slide changes. Reloading starts with clean slides unless `persistAnnotations: true` is enabled.
 - **Eraser** — touch or drag across a stroke to remove it. Each gesture can be undone. A stroke is erased as a whole, not pixel by pixel.
 - **Undo / Redo** — reverse or redo pen strokes, erasing and clearing, independently for each slide and for the whiteboard. `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z` work while a drawing tool or the whiteboard is active.
 - **Save** — download the current slide's strokes as a **transparent PNG**, or a white-background PNG while the whiteboard is open. This is an annotation export, not a screenshot of the slide content.
@@ -50,6 +50,7 @@ npm install reveal.js-touchcontrols
 - **Magnifier** — tap the magnifier icon once to show a circular 2× enlargement immediately at the center of the screen. Drag anywhere on the slide to move the lens, pinch with two fingers or use the mouse wheel to adjust its diameter, and tap the magnifier icon again (or press Escape) to close it. Text, photographs, inline SVG, diagrams, canvas graphics and saved pen annotations appear magnified inside an opaque lens, so the original small content does not show through; the original slide never scales. Set `lupeMode: 'spot'` for the former spotlight, or `'both'` / `'zoom'` to retain the older multi-step focus behaviours. The lens stays fully on-screen near the viewport edges while continuing to magnify the exact selected point. Its subtle, dual-contrast outline adapts to light and dark slides. Reveal fragments, DOM edits, and CSS animation/transition changes refresh automatically; live canvas content is synchronized while the lens is open. Embedded iframes and playing video are not mirrored.
 - **Timer** — tap the icon to cycle **5 → 10 → 15 minutes → off** (or the `timerMinutes` presets you configured). No additional timer controls appear. **Hold the icon**, right-click or Shift-click to enter a custom number of minutes. **Tap the countdown itself** to pause/resume. The display stays visible across slides, uses wall-clock time and pulses red at 0:00.
 - **Pause · Overview · Fullscreen** — one tap each.
+- **Move toolbar** — flick the toolbar sideways to send it to the other bottom corner, or tap ⇄ in **More**. A short or slow drag snaps back, taps on the buttons work as usual and the slide does not change. On the right, the toolbar is mirrored, including the More menu (Pen and Eraser at the outer corner, Print innermost; Undo/Redo keep their order) and sits beside reveal.js' navigation arrows instead of covering them. The chosen side is remembered in this browser. Set `switchSide: false` to keep the bar fixed.
 - **Print** — shown directly in the main toolbar on the **first and last slide**, with different actions. On the first slide it prints **all slides without annotations** (the original behaviour). On the last slide it prints **all slides with their permanent pen annotations**, attached to the corresponding slide. It opens the print view (`?print-pdf`) in a new tab and starts the print/PDF dialog. The print button is hidden on intermediate slides. **The same printer icon is used in both places — no pen overlay or extra icon.** With a single-slide deck the annotated version takes precedence. Speaker notes and temporary fading ink are not included. Works best in Chrome or Edge.
 
 On dark slides the toolbar groups and buttons have transparent backgrounds, with subtle 1 px outlines and a solid active-state border. Buttons turn white automatically on dark slides. Browser/keyboard focus does not add a separate ring around icons (the selected tool is marked by its solid outline, fading ink by a dotted one), and the toolbar fades out when idle (returns on movement — the timer countdown always stays visible).
@@ -64,6 +65,7 @@ All options are optional.
 Reveal.initialize({
   touchcontrols: {
     side: 'left',                 // 'left' | 'right'
+    switchSide: true,             // flick the bar (or use More) to move it to the other corner
     bottom: 32,                   // offset from the bottom, px
     accent: '#2C4A6E',            // button colour
     hover: 'rgba(44,74,110,.10)', // button hover colour
@@ -71,7 +73,7 @@ Reveal.initialize({
     penWidth: 4,                  // stroke width
     // Omit buttons for the new contextual default; explicit buttons[] preserves flat layout.
     toolbarMode: 'contextual',    // 'contextual' | 'flat'
-    // buttons: ['pen','eraser','undo','redo','save','whiteboard','zoom','timer','pause','overview','fullscreen','print'],
+    // buttons: ['pen','eraser','undo','redo','save','whiteboard','zoom','timer','pause','overview','fullscreen','side','print'],
     timerMinutes: [5, 10, 15],    // cycle these presets with each Timer tap
     autohide: true,
     autohideDelay: 3500,          // ms before hiding
@@ -93,13 +95,14 @@ Reveal.initialize({
 
 | Option | Default | Description |
 |---|---|---|
-| `side` | `'left'` | Corner: `'left'` or `'right'` |
+| `side` | `'left'` | Starting corner: `'left'` or `'right'`. A side chosen by flicking takes precedence in that browser |
+| `switchSide` | `true` | Flick the toolbar sideways or use ⇄ in More to switch corners; the choice is remembered per browser. `false` keeps it fixed at `side` |
 | `bottom` | `32` | Offset from the bottom (px) |
 | `accent` | `'#2C4A6E'` | Button colour |
 | `hover` | `'rgba(44,74,110,.10)'` | Button hover colour |
-| `inks` | `['#D14A4A','#2B6CB0']` | Pen colors cycled on each tap (also in pen settings). Hex codes, color names and `rgb()`/`hsl()` values work |
+| `inks` | `['#D14A4A','#2B6CB0']` | Pen colors cycled on each tap. Hex codes, color names and `rgb()`/`hsl()` values work |
 | `penWidth` | `4` | Stroke width |
-| `buttons` | all twelve available | Configure which buttons are included. An explicit array defaults to flat mode for backwards compatibility; set `toolbarMode: 'contextual'` to group them |
+| `buttons` | all thirteen available | Configure which buttons are included. An explicit array defaults to flat mode for backwards compatibility; set `toolbarMode: 'contextual'` to group them |
 | `toolbarMode` | `'contextual'` | Context-sensitive main/drawing/More groups; `'flat'` shows every configured button in one toolbar, like 1.7.0 |
 | `timerMinutes` | `[5,10,15]` | Tap Timer to cycle through these presets, then off. |
 | `autohide` | `true` | Hide the toolbar when idle |
@@ -119,11 +122,11 @@ Reveal.initialize({
 | `fadeInk` | `'#E5484D'` | Colour of the fading strokes |
 | `fadeMs` | `1800` | How long a fading stroke lives, in milliseconds |
 
-By default the main toolbar contains Pen, Whiteboard, Focus, Timer, Blank screen and More. The drawing group (Eraser, Undo, Redo and PNG export) appears only when relevant. Hold Pen for its settings; tap Timer to cycle through the configured durations, then off. Tap the countdown to pause or resume. More contains Overview and Fullscreen, plus any controls moved there to fit a narrow viewport. Print is always the rightmost main button on the first slide (without annotations) and last slide (with annotations), with extra spacing after More. Menus close when changing slides or using a different tool. Custom `buttons` arrays retain their familiar flat layout unless you opt into contextual mode.  Leave `'print'` out of `buttons` if you don’t want the print button.
+By default the main toolbar contains Pen, Whiteboard, Focus, Timer, Blank screen and More. The drawing group (Eraser, Undo, Redo and PNG export) appears only when relevant. Hold Pen to clear the current slide; tap Timer to cycle through the configured durations, then off. Tap the countdown to pause or resume. More contains Overview, Fullscreen and Move toolbar, plus any controls moved there to fit a narrow viewport. Print is always the rightmost main button on the first slide (without annotations) and last slide (with annotations), with extra spacing after More. Menus close when changing slides or using a different tool. Custom `buttons` arrays retain their familiar flat layout unless you opt into contextual mode.  Leave `'print'` out of `buttons` if you don’t want the print button.
 
 ## Changelog
 
-**1.7.9** — Fixed original-size text or graphics bleeding through the magnifier when slide backgrounds are transparent. Removed the additional keyboard-focus ring from toolbar icons while keeping keyboard activation. Refined the toolbar look: a new eraser icon, even 1 px light button outlines, and a solid outline for the active tool (dotted only for fading ink). Ink colors given as `rgb()`/`rgba()`/`hsl()`/`hsla()` are now kept when printing with annotations and after reloading.
+**1.7.9** — Fixed original-size text or graphics bleeding through the magnifier when slide backgrounds are transparent. Removed the additional keyboard-focus ring from toolbar icons while keeping keyboard activation. Refined the toolbar look: a new eraser icon, even 1 px light button outlines, and a solid outline for the active tool (dotted only for fading ink). Ink colors given as `rgb()`/`rgba()`/`hsl()`/`hsla()` are now kept when printing with annotations and after reloading. Holding the pen clears the current slide again (undoable), as in 1.6; the Pen settings menu was removed. New: flick the toolbar sideways (or use ⇄ in More) to move it to the other corner; on the right it is mirrored, avoids reveal.js' arrows and remembers the side (`switchSide`).
 
 **1.7.8** — Kept the circular magnifier on-screen at slide edges without losing the selected zoom point. Refined its subtle border for light and dark slides. The mirror now reacts to fragment events, DOM edits, CSS transitions/animations and live canvas updates.
 
@@ -156,7 +159,7 @@ By default the main toolbar contains Pen, Whiteboard, Focus, Timer, Blank screen
 - The pen button gained a **last stage that fades**: strokes drawn in it disappear by themselves after a moment. It is for the pointing you do while talking — circle a value, underline a word, draw an arrow — where the mark has done its job the second the sentence is over. Nobody has to remember to wipe the slide.
 - The fading strokes live on their own canvas, so permanent annotations underneath are untouched: you can keep a diagram on the slide and still point at parts of it.
 - Strokes are stored with a timestamp and repainted each frame at their own opacity, rather than the whole surface being dimmed repeatedly. Repeated dimming stalls at low alpha because of 8-bit rounding — the marks would never quite vanish. This way they do, and they fade out softly instead of linearly.
-- Clear drawing is available in the Pen settings menu after confirmation. Switching to the whiteboard retains annotations separately.
+- Long-press erase clears the fading layer as well; switching to the whiteboard returns the pen to its first colour.
 - New options `fadePen`, `fadeInk` and `fadeMs`; set `fadePen: false` for the previous behaviour.
 
 **1.3.0**

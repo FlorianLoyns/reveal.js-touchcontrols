@@ -44,6 +44,7 @@
     grid: svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
     full: svg('<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>'),
     print: svg('<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/><path d="M17.5 12h.01"/>'),
+    side: svg('<path d="M4 12h16"/><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/>'),
     more: svg('<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>')
   };
 
@@ -54,22 +55,25 @@
 
   function injectCSS(o){
     if (document.getElementById('touchcontrols-css')) return;
-    var pos = (o.side === 'right') ? 'right:18px' : 'left:18px';
     var css =
-      ".reveal .touchcontrols{position:fixed;visibility:visible;" + pos + ";bottom:" + o.bottom + "px;z-index:60;display:flex;align-items:flex-start;flex-direction:column;gap:5px;max-width:calc(100vw - 24px);transition:opacity .3s ease}"
-    + ".reveal .touchcontrols.tc-right{align-items:flex-end}"
+      ".reveal .touchcontrols{position:fixed;visibility:visible;left:18px;right:auto;-webkit-user-select:none;user-select:none;bottom:" + o.bottom + "px;z-index:60;display:flex;align-items:flex-start;flex-direction:column;gap:5px;max-width:calc(100vw - 24px);transition:opacity .3s ease}"
+    + ".reveal .touchcontrols.tc-right{left:auto;right:18px;align-items:flex-end}"
+    + ".reveal .touchcontrols.tc-flick{touch-action:none}"
+    /* Mirrored on the right: the pen sits at the outer corner, print innermost.
+       Undo/redo keep their natural reading order. */
+    + ".reveal .touchcontrols.tc-right:not(.tc-flat) .tc-main,.reveal .touchcontrols.tc-right:not(.tc-flat) .tc-draw,.reveal .touchcontrols.tc-right:not(.tc-flat) .tc-extra{flex-direction:row-reverse}"
+    + ".reveal .touchcontrols.tc-right:not(.tc-flat) .tc-draw > [data-tc-control=eraser]{order:0}"
+    + ".reveal .touchcontrols.tc-right:not(.tc-flat) .tc-draw > [data-tc-control=redo]{order:1}"
+    + ".reveal .touchcontrols.tc-right:not(.tc-flat) .tc-draw > [data-tc-control=undo]{order:2}"
+    + ".reveal .touchcontrols.tc-right:not(.tc-flat) .tc-draw > [data-tc-control=save]{order:3}"
+    + ".reveal .touchcontrols.tc-right:not(.tc-flat) .tc-main > [data-tc-control=print]{margin-inline-start:0;margin-inline-end:12px}"
+    + ".reveal .touchcontrols.tc-flicking button{pointer-events:none}"
     + ".reveal .touchcontrols .tc-group{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;padding:4px;border-radius:12px;background:rgba(255,255,255,.96);box-shadow:0 2px 12px rgba(0,0,0,.12);max-width:100%;box-sizing:border-box}"
     + ".reveal .touchcontrols .tc-group[hidden]{display:none!important}"
     // Print is an endpoint action, so separate it visually from the More tools button.
     // Keep the gap even when Print is hidden on intermediate slides, to reserve its slot.
     + ".reveal .touchcontrols:not(.tc-flat) .tc-main > [data-tc-control=print]{margin-inline-start:12px}"
-    + ".reveal .touchcontrols .tc-panel{flex-wrap:wrap;max-width:min(440px,calc(100vw - 36px));gap:5px}"
-    + ".reveal .touchcontrols .tc-panel button.tc-text{width:auto;min-width:44px;flex:0 0 auto;padding:0 10px;font-size:13px;font-weight:600;white-space:nowrap}"
-    + ".reveal .touchcontrols .tc-panel button.tc-swatch{width:36px;height:36px;flex:0 0 36px;border-radius:50%;background:var(--tc-swatch)!important;border:2px solid currentColor}"
-    + ".reveal .touchcontrols .tc-panel button.tc-swatch.active{border-style:solid;border-width:2px;outline:1px solid currentColor;outline-offset:2px}"
-    + ".reveal .touchcontrols .tc-panel .tc-panel-label{width:100%;font:600 13px/1.4 system-ui,sans-serif;color:inherit;opacity:.9;padding:1px 3px}"
     + ".reveal .touchcontrols.tc-flat{flex-direction:row;flex-wrap:wrap}"
-    + ".reveal .touchcontrols.tc-flat .tc-panel{flex-basis:100%}"
     + ".reveal .touchcontrols.tc-flat .tc-group{flex-wrap:wrap}"
     + ".reveal.has-dark-background .touchcontrols .tc-group{background:transparent;box-shadow:none}"
     + ".reveal.has-dark-background .touchcontrols .tc-group::before{display:none}"
@@ -114,7 +118,8 @@
     + ".reveal .touchcontrols-lens-ink{position:absolute;left:0;top:0;pointer-events:none}"
     /* In focus mode, disable native touch scrolling and zooming to avoid pointer cancellation. */
     + ".reveal.tc-focus,.reveal.tc-focus .slides{touch-action:none !important}"
-    + ".reveal .touchcontrols-timer{position:fixed;" + pos + ";bottom:" + (o.bottom + 116) + "px;z-index:60;display:none;padding:6px 16px;border-radius:12px;background:" + o.accent + ";color:#fff;font-family:Inter,system-ui,-apple-system,sans-serif;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.5px}"
+    + ".reveal .touchcontrols-timer{position:fixed;left:18px;right:auto;bottom:" + (o.bottom + 116) + "px;z-index:60;display:none;padding:6px 16px;border-radius:12px;background:" + o.accent + ";color:#fff;font-family:Inter,system-ui,-apple-system,sans-serif;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.5px}"
+    + ".reveal .touchcontrols-timer.tc-right{left:auto;right:18px}"
     + ".reveal .touchcontrols-timer.on{display:block;cursor:pointer}"
     + ".reveal .touchcontrols-timer.paused{background:#666}"
     + ".reveal .touchcontrols-timer:focus-visible{outline:2px solid currentColor;outline-offset:3px}"
@@ -237,13 +242,15 @@
 
       var c = deck.getConfig().touchcontrols || {};
       var o = {
-        side: c.side || 'left',
+        side: c.side === 'right' ? 'right' : 'left',
+        /* Flick the toolbar sideways, or use More, to move it to the other corner. */
+        switchSide: (c.switchSide != null) ? c.switchSide : true,
         bottom: (c.bottom != null) ? c.bottom : 32,
         accent: c.accent || '#2C4A6E',
         hover: c.hover || 'rgba(44,74,110,.10)',
         inks: (c.inks && c.inks.length) ? c.inks : ['#D14A4A', '#2B6CB0'],
         penWidth: c.penWidth || 4,
-        buttons: Array.isArray(c.buttons) ? c.buttons : ['pen','eraser','undo','redo','save','whiteboard','zoom','timer','pause','overview','fullscreen','print'],
+        buttons: Array.isArray(c.buttons) ? c.buttons : ['pen','eraser','undo','redo','save','whiteboard','zoom','timer','pause','overview','fullscreen','side','print'],
         /* Existing explicit buttons[] configuration keeps the old flat arrangement.
            Set toolbarMode:'contextual' to opt in with a custom button list. */
         toolbarMode: c.toolbarMode === 'flat' || (!c.toolbarMode && Array.isArray(c.buttons)) ? 'flat' : 'contextual',
@@ -270,6 +277,11 @@
         keepWhiteboard: (c.keepWhiteboard != null) ? c.keepWhiteboard : true,
         eraserRadius: Math.max(5, Number(c.eraserRadius) || 18)
       };
+      var sideKey = 'reveal-touchcontrols-side';
+      if (o.switchSide) {
+        try { var savedSide = localStorage.getItem(sideKey); if (savedSide === 'left' || savedSide === 'right') o.side = savedSide; }
+        catch (_) { /* storage may be blocked */ }
+      }
       /* The zoom stage dims the surroundings less than the initial spotlight stage. */
       o.spotDimZoom = (c.spotDimZoom != null) ? c.spotDimZoom : +(o.spotDim * 0.64).toFixed(2);
       var preexistingCSS = d.getElementById('touchcontrols-css');
@@ -300,14 +312,14 @@
         if (!o.autohide) return;
         clearTimeout(idleTimer);
         idleTimer = setTimeout(function(){
-          if (pen.on || eraser.on || zoom.on || zoom.armed || wb.on || menuOpen || panelMode) return;   // Keep visible while a tool or menu is active
+          if (pen.on || eraser.on || zoom.on || zoom.armed || wb.on || menuOpen) return;   // Keep visible while a tool or menu is active
           bar.classList.add('idle');
           bar.setAttribute('aria-hidden', 'true');
           bar.querySelectorAll('button').forEach(function(btn){ btn.tabIndex = -1; });
         }, o.autohideDelay);
       }
 
-      /* Pen annotations. Long press opens a settings panel; clearing is a separate, undoable action. */
+      /* Pen annotations. Tap cycles the inks; a long press clears the current slide or whiteboard (undoable). */
       var pen = { on:false, canvas:null, ctx:null, drawing:false }, eraser = { on:false }, penBtn = null, eraserBtn = null, undoBtn = null, redoBtn = null, longPressed = false;
       var currentInk = o.inks[0], penState = -1, selectedPenState = 0; // -1=off; 0..n-1=ink colors; n=fading ink
       /* Fading strokes use a separate canvas. Persistent marks must never fade with them. Repaint stroke opacity from its age on each frame to avoid 8-bit alpha rounding artifacts. */
@@ -613,7 +625,7 @@
           penBtn.style.color=pen.on?currentInk:'';
           penBtn.style.borderStyle=pen.on && isFadingInk()?'dotted':'';
           var inkLabel = penState<0?'off':isFadingInk()?'fading ink':penState===0?'red ink':penState===1?'blue ink':'ink '+(penState+1);
-          penBtn.title='Pen: '+inkLabel+' (tap to cycle colors, fading ink and off; hold for settings)';
+          penBtn.title='Pen: '+inkLabel+' (tap to cycle colors, fading ink and off; hold to clear the drawing)';
         }
         if(eraserBtn){eraserBtn.classList.toggle('active',eraser.on);eraserBtn.setAttribute('aria-pressed',String(eraser.on));}
         pen.canvas.style.pointerEvents=(pen.on || eraser.on)?'auto':'none';
@@ -634,12 +646,6 @@
         if(penState>=0) selectedPenState=penState;
         if(!isFadingInk()) clearFade();
         applyPen();
-      }
-      function selectPen(state){
-        selectedPenState=state;
-        eraser.on=false;penState=state;
-        if(zoom.on || zoom.armed)resetZoom();
-        clearFade();closePanels();applyPen();
       }
       function eraserTap(){
         closePanels();
@@ -705,12 +711,13 @@
       function ensureChip(){
         if(timer.chip)return;
         var el=d.createElement('div');
-        el.className='touchcontrols-timer';
+        el.className='touchcontrols-timer'+(o.side==='right'?' tc-right':'');
         el.setAttribute('role','button'); el.tabIndex=0;
         el.title='Pause or resume timer';
         listen(el,'click',toggleTimerPause);
         listen(el,'keydown',function(ev){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();toggleTimerPause();}});
         host.appendChild(el); timer.chip=el;
+        if(bar.style.right)el.style.right=bar.style.right;
       }
       function paintTimer(){
         ensureChip();
@@ -1179,13 +1186,13 @@
         if(wb.on)setBoard(false);
         if(!o.keepAnnotations && previous)annots.delete(previous);
         resetZoom(); clearFade(); renderAnnotations(); updateHistory(); saveStorage();
-        if(menuOpen||panelMode)closePanels();
+        if(menuOpen)closePanels();
       });
       deckListen('overviewshown',function(){if(zoom.on||zoom.armed)resetZoom();});
       deckListen('paused',function(){if(zoom.on||zoom.armed)resetZoom();});
 
       function penTitle(){
-        return 'Pen – tap to cycle colors, fading ink and off; hold for settings';
+        return 'Pen – tap to cycle colors, fading ink and off; hold to clear the drawing';
       }
       function focusTitle(){
         if(o.lupeMode==='magnifier')return 'Focus – magnifier: drag to move, pinch or scroll to resize, tap again to close';
@@ -1207,25 +1214,24 @@
         pause:      {ic:ICON.pause,t:'Blank screen',fn:function(){deck.togglePause();}},
         overview:   {ic:ICON.grid,t:'Slide overview',fn:function(){deck.toggleOverview();}},
         fullscreen: {ic:ICON.full,t:'Toggle fullscreen',fn:toggleFullscreen},
-        print:      {ic:ICON.print,t:'Print slides',pr:true,fn:function(){openPrint(printWithInk?printSnapshot():null);}}
+        print:      {ic:ICON.print,t:'Print slides',pr:true,fn:function(){openPrint(printWithInk?printSnapshot():null);}},
+        side:       {ic:ICON.side,t:'Move toolbar to the other side',fn:function(){switchSide();}}
       };
       /* Contextual toolbar: primary controls stay available; drawing tools appear
          only when drawing/annotations are relevant; presentation actions live in
          the More menu. The flat layout stays available for existing configurations. */
-      var printBtn = null, menuOpen = false, moreBtn = null, panelMode = null;
+      var printBtn = null, menuOpen = false, moreBtn = null;
       var presentationStateBtns = Object.create(null);
       var mainGroup=d.createElement('div'); mainGroup.className='tc-group tc-main';
       var drawGroup=d.createElement('div'); drawGroup.className='tc-group tc-draw';
       var moreGroup=d.createElement('div'); moreGroup.className='tc-group tc-extra';
-      var panelGroup=d.createElement('div'); panelGroup.className='tc-group tc-panel';
       mainGroup.setAttribute('role','group'); mainGroup.setAttribute('aria-label','Main tools');
       drawGroup.setAttribute('role','group'); drawGroup.setAttribute('aria-label','Drawing tools');
       moreGroup.setAttribute('role','group'); moreGroup.setAttribute('aria-label','More presentation controls');
-      panelGroup.setAttribute('role','group'); panelGroup.setAttribute('aria-label','Tool options');
       var contextual = o.toolbarMode === 'contextual';
       var drawingKeys=['eraser','undo','redo','save'];
-      var extraKeys=['overview','fullscreen'];
-      var controlItems = o.buttons.filter(function(k){ return !!ALL[k]; });
+      var extraKeys=['overview','fullscreen','side'];
+      var controlItems = o.buttons.filter(function(k){ return !!ALL[k] && (k!=='side' || o.switchSide); });
       var hasDrawTrigger = controlItems.indexOf('pen')>=0 || controlItems.indexOf('whiteboard')>=0 || controlItems.indexOf('eraser')>=0;
 
       /* A hidden group is removed from the keyboard focus order as well as view. */
@@ -1241,12 +1247,11 @@
       }
       function refreshControls(){
         if(!bar.isConnected)return;
-        if(!contextual){groupVisible(panelGroup,!!panelMode);placeTimer();return;}
+        if(!contextual){placeTimer();return;}
         var history=activeLayer();
         var relevant=!zoom.on && !zoom.armed && (pen.on || eraser.on || wb.on || !!(history.strokes.length || history.undo.length || history.redo.length));
-        groupVisible(drawGroup,hasDrawTrigger && relevant && !menuOpen && !panelMode && drawGroup.childElementCount>0);
-        groupVisible(moreGroup,menuOpen && !panelMode && moreGroup.childElementCount>0);
-        groupVisible(panelGroup,!!panelMode);
+        groupVisible(drawGroup,hasDrawTrigger && relevant && !menuOpen && drawGroup.childElementCount>0);
+        groupVisible(moreGroup,menuOpen && moreGroup.childElementCount>0);
         if(moreBtn){
           moreBtn.classList.toggle('active',menuOpen);
           moreBtn.setAttribute('aria-expanded',String(menuOpen));
@@ -1254,55 +1259,18 @@
         placeTimer();
       }
       function closePanels(){
-        menuOpen=false;panelMode=null;
+        menuOpen=false;
         refreshControls();
       }
-      function createOption(label, action, options){
-        var b=d.createElement('button');b.type='button';b.textContent=label;
-        b.className='tc-text'+(options&&options.className?' '+options.className:'');
-        b.setAttribute('aria-label',label);
-        if(options&&options.action)b.setAttribute('data-tc-action',options.action);
-        b.addEventListener('pointerdown',function(ev){ev.stopPropagation();});
-        b.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();action();});
-        panelGroup.appendChild(b);return b;
-      }
-      function buildPanel(){
-        panelGroup.replaceChildren();
-        var label=d.createElement('span');label.className='tc-panel-label';
-        label.textContent='Pen settings';
-        panelGroup.appendChild(label);
-        if(panelMode==='pen'){
-          o.inks.forEach(function(color,i){
-            var b=createOption('Color '+(i+1),function(){selectPen(i);},{action:'pen-color-'+i});
-            b.classList.add('tc-swatch');b.style.setProperty('--tc-swatch',color);
-            b.setAttribute('title','Pen color '+(i+1));
-            b.textContent='';b.classList.toggle('active',selectedPenState===i);
-          });
-          if(o.fadePen)createOption('Fading ink',function(){selectPen(o.inks.length);},{action:'pen-fading'});
-          createOption('Clear drawing…',function(){
-            if(window.confirm('Clear the current '+(wb.on?'whiteboard':'slide')+' annotations? You can undo this action.')){
-              clearAnnot();closePanels();
-            }
-          },{action:'clear-drawing'});
-        }
-        createOption('Close',closePanels,{action:'close-panel'});
-      }
-      function openPanel(which){
-        menuOpen=false;panelMode=panelMode===which?null:which;
-        if(panelMode)buildPanel();
-        refreshControls();activity();
-      }
       function toggleMore(){
-        panelMode=null;menuOpen=!menuOpen;
+        menuOpen=!menuOpen;
         refreshControls();activity();
       }
       if (contextual){
-        bar.appendChild(panelGroup);
         bar.appendChild(drawGroup);
         bar.appendChild(moreGroup);
         bar.appendChild(mainGroup);
       } else {
-        bar.appendChild(panelGroup);
         bar.appendChild(mainGroup);
       }
       controlItems.forEach(function (key) {
@@ -1324,17 +1292,17 @@
             ev.stopPropagation();
             longPressed=false;
             if(ev.button===2)return;
-            lp=setTimeout(function(){longPressed=true;openPanel('pen');},550);
+            // Long press clears the current slide (or the whiteboard) completely. Undo restores it.
+            lp=setTimeout(function(){lp=null;longPressed=true;clearAnnot();activity();},550);
           });
           var cancelLP=function(){ if(lp){clearTimeout(lp);lp=null;} };
           b.addEventListener('pointerup',cancelLP);
           b.addEventListener('pointerleave',cancelLP);
           b.addEventListener('pointercancel',cancelLP);
-          b.addEventListener('contextmenu',function(ev){ev.preventDefault();ev.stopPropagation();cancelLP();longPressed=true;openPanel('pen');});
+          b.addEventListener('contextmenu',function(ev){ev.preventDefault();ev.stopPropagation();});
           b.addEventListener('click',function(ev){
             ev.stopPropagation(); ev.preventDefault();
             if(longPressed){longPressed=false;return;}
-            if(ev.shiftKey){openPanel('pen');return;}
             penTap();
           });
         } else {
@@ -1385,21 +1353,110 @@
         mainGroup.appendChild(moreBtn);
       }
       listen(d,'pointerdown',function(ev){
-        if((menuOpen||panelMode) && !bar.contains(ev.target)){closePanels();activity();}
+        if(menuOpen && !bar.contains(ev.target)){closePanels();activity();}
       },true);
       listen(d,'keydown',function(ev){
-        if(ev.key==='Escape' && (menuOpen||panelMode)){
+        if(ev.key==='Escape' && menuOpen){
           closePanels();(moreBtn||penBtn||timerBtn||bar).focus();activity();
         }
       },true);
       // Keep More anchored. Print is always to its right, regardless of slide.
       if(contextual && printBtn && moreBtn)mainGroup.appendChild(printBtn);
       host.appendChild(bar);
-      groupVisible(panelGroup,false);
+
+      /* Side switching: a sideways flick on the toolbar (or "Move toolbar" in More)
+         sends it to the other bottom corner. The choice is remembered per browser. */
+      function applySide(){
+        bar.classList.toggle('tc-right',o.side==='right');
+        if(timer.chip)timer.chip.classList.toggle('tc-right',o.side==='right');
+        avoidRevealControls();
+      }
+      /* In the bottom-right corner, sit beside reveal.js' navigation arrows instead of covering them. */
+      function avoidRevealControls(){
+        var off='';
+        if(o.side==='right'){
+          var ctl=host.querySelector(':scope > .controls');
+          if(ctl && getComputedStyle(ctl).display!=='none'){
+            // The arrow buttons are positioned children; the container itself can be 0×0.
+            var left=Infinity;
+            Array.prototype.forEach.call(ctl.querySelectorAll('button, .controls-arrow'),function(el){
+              var r=el.getBoundingClientRect(), cs=getComputedStyle(el);
+              // Disabled arrows are only hidden for now; keep their space free too.
+              if(r.width>0 && r.height>0 && cs.display!=='none' &&
+                 r.left>window.innerWidth*0.6 && r.bottom>window.innerHeight-o.bottom-60)left=Math.min(left,r.left);
+            });
+            if(left<Infinity)off=Math.ceil(window.innerWidth-left+12)+'px';
+          }
+        }
+        bar.style.right=off;
+        if(timer.chip)timer.chip.style.right=off;
+      }
+      function switchSide(){
+        var before=bar.getBoundingClientRect();
+        bar.style.transition='none';bar.style.transform='';
+        o.side=o.side==='right'?'left':'right';
+        applySide();
+        try{localStorage.setItem(sideKey,o.side);}catch(_){}
+        fitMainControls();
+        var after=bar.getBoundingClientRect(), shift=before.left-after.left;
+        var calm=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if(shift && !calm){
+          bar.style.transform='translateX('+shift+'px)';
+          bar.getBoundingClientRect();
+          bar.style.transition='transform .34s cubic-bezier(.2,.8,.2,1)';
+          bar.style.transform='';
+        }
+        setTimeout(function(){bar.style.transition='';},380);
+        placeTimer();activity();
+      }
+      var flick=null, suppressClick=false;
+      if(o.switchSide){
+        bar.classList.add('tc-flick');
+        bar.setAttribute('data-prevent-swipe','');   // reveal.js must not change slides
+        bar.addEventListener('pointerdown',function(ev){
+          if(ev.button>0 || ev.isPrimary===false)return;
+          flick={id:ev.pointerId,x:ev.clientX,y:ev.clientY,t:Date.now(),dx:0,dragging:false,target:ev.target};
+        },true);
+        listen(d,'pointermove',function(ev){
+          if(!flick || ev.pointerId!==flick.id)return;
+          var dx=ev.clientX-flick.x, dy=ev.clientY-flick.y;
+          if(!flick.dragging){
+            if(Math.abs(dy)>30 && Math.abs(dy)>Math.abs(dx)){flick=null;return;}
+            if(Math.abs(dx)<14 || Math.abs(dx)<Math.abs(dy)*1.5)return;
+            flick.dragging=true;flick.x=ev.clientX-(dx>0?14:-14);flick.t=Date.now();dx=ev.clientX-flick.x;
+            var pressed=flick.target && flick.target.closest && flick.target.closest('button');
+            if(pressed)pressed.dispatchEvent(new Event('pointercancel'));   // stop pending long presses
+            bar.classList.add('tc-flicking');bar.style.transition='none';activity();
+          }
+          flick.dx=dx;
+          var toward=o.side==='left'?dx:-dx;
+          bar.style.transform='translateX('+(toward>0?dx:dx*0.25)+'px)';
+          if(ev.cancelable)ev.preventDefault();
+        },true);
+        var endFlick=function(ev,cancelled){
+          if(!flick || ev.pointerId!==flick.id)return;
+          var f=flick;flick=null;
+          if(!f.dragging)return;
+          bar.classList.remove('tc-flicking');
+          suppressClick=true;setTimeout(function(){suppressClick=false;},80);   // only the click that ends the flick
+          var toward=o.side==='left'?f.dx:-f.dx, speed=toward/Math.max(1,Date.now()-f.t);
+          if(!cancelled && (toward>=Math.min(160,window.innerWidth*0.2) || (toward>=40 && speed>=0.45))){switchSide();return;}
+          bar.style.transition='transform .2s ease';bar.style.transform='';
+          setTimeout(function(){bar.style.transition='';},220);
+        };
+        listen(d,'pointerup',function(ev){endFlick(ev,false);},true);
+        listen(d,'pointercancel',function(ev){endFlick(ev,true);},true);
+        bar.addEventListener('click',function(ev){
+          if(suppressClick){ev.preventDefault();ev.stopPropagation();suppressClick=false;}
+        },true);
+      }
+      Plugin.switchSide = switchSide;
+      applySide();
+      deckListen('ready',function(){applySide();fitMainControls();placeTimer();});
       groupVisible(drawGroup,false);
       groupVisible(moreGroup,false);
       updateHistory();
-      listen(window,'resize',function(){fitMainControls();placeTimer();});
+      listen(window,'resize',function(){avoidRevealControls();fitMainControls();placeTimer();});
 
       /* The first slide prints the presentation without annotations; the last slide prints with annotations. No print button appears on intermediate slides. Recompute on every slide change. */
       function fitMainControls(){
@@ -1410,7 +1467,7 @@
           if(b && b.parentElement===moreGroup)mainGroup.insertBefore(b,moreBtn||printBtn);
         });
         var cs=getComputedStyle(mainGroup), gap=parseFloat(cs.columnGap)||0;
-        var available=window.innerWidth-30;
+        var available=window.innerWidth-30-Math.max(0,(parseFloat(bar.style.right)||18)-18);
         function used(){
           var b=Array.from(mainGroup.children).filter(function(el){return el.tagName==='BUTTON'&&!el.hidden&&el.style.display!=='none';});
           var width=b.reduce(function(sum,el){return sum+parseFloat(getComputedStyle(el).width);},0);
@@ -1423,7 +1480,7 @@
             b.push(printBtn);
           }
           // The print slot has its own margin in addition to the flex gap.
-          var printGap=printBtn ? (parseFloat(getComputedStyle(printBtn).marginInlineStart)||0) : 0;
+          var printGap=printBtn ? (parseFloat(getComputedStyle(printBtn).marginInlineStart)||0)+(parseFloat(getComputedStyle(printBtn).marginInlineEnd)||0) : 0;
           return width+Math.max(0,b.length-1)*gap+printGap+parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight)+parseFloat(cs.borderLeftWidth)+parseFloat(cs.borderRightWidth);
         }
         ['pause','timer','zoom','whiteboard'].forEach(function(key){
